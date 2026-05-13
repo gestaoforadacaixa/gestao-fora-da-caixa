@@ -3,12 +3,25 @@ import { useState, useEffect, useMemo } from "react";
 const SUPA_URL = "https://oltwaosdzgvbbvermilk.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdHdhb3Nkemd2YmJ2ZXJtaWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDU3MjksImV4cCI6MjA5NDEyMTcyOX0.WbDR65w6eywTgLc4Lwii_63RrJwKPN9oj1DsgjxeFBo";
 const SBH = { "apikey":SUPA_KEY, "Authorization":`Bearer ${SUPA_KEY}` };
+const SBH_W = { ...SBH, "Content-Type":"application/json", "Prefer":"return=representation" };
 
 async function fetchMes(mes) {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?mes=eq.${mes}&excluido=eq.false&order=data.desc`,{headers:SBH});
     return r.ok ? r.json() : [];
   } catch { return []; }
+}
+async function sbPost(b) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos`,{method:"POST",headers:SBH_W,body:JSON.stringify(b)});
+    return r.ok ? r.json() : null;
+  } catch { return null; }
+}
+async function sbPatch(id,b) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?id=eq.${id}`,{method:"PATCH",headers:{...SBH_W,"Prefer":"return=minimal"},body:JSON.stringify(b)});
+    return r.ok;
+  } catch { return false; }
 }
 
 // ─── PALETA ───────────────────────────────────────────────────────────────────────
@@ -29,22 +42,33 @@ const CAT_COR = {
   "Compromissos Financeiros":P.orange,"Moradia":P.blue,"Transporte":P.green,
   "Alimentação":P.purple,"Reserva":"#8BC4A0","Salários":P.blue,
   "Mensalidades":P.green,"Material Didático":P.purple,
+  "Marketing":"#E882B4","Lazer":"#7BC8A4",
 };
+
+const CATS_EMP_PICO  = ["Administrativo","Funcionário","Infraestrutura","Insumos","Investimento","Marketing","Outros"];
+const CATS_PES_PICO  = ["Alimentação","Compromissos Financeiros","Lazer","Moradia","Reserva","Transporte","Outros"];
+const CATS_EMP_CRIAR = ["Administrativo","Infraestrutura","Material Didático","Mensalidades","Salários","Outros"];
+const MEIOS          = ["Crédito","Débito","Dinheiro","Pix"];
 
 const MESES_DISP  = ["2026-04","2026-05","2026-06","2026-07","2026-08"];
 const MESES_LABEL = {"2026-04":"Abril 2026","2026-05":"Maio 2026","2026-06":"Junho 2026","2026-07":"Julho 2026","2026-08":"Agosto 2026"};
 
 const CLIENTES = [
-  {id:"pico",  nome:"Pico Barber Shop",        seg:"Barbearia",
-   cor:P.orange, corL:P.orangeL, corT:"#B85C20", corPale:P.orangePale},
-  {id:"criar", nome:"CRIAR Centro Educacional", seg:"Educação",
-   cor:P.blue,   corL:P.blueL,   corT:"#2558A0", corPale:P.bluePale},
+  {id:"pico",  nome:"Pico Barber Shop",        seg:"Barbearia", hasPessoal:true,
+   cor:P.orange, corL:P.orangeL, corT:"#B85C20", corPale:P.orangePale,
+   catsEmp:CATS_EMP_PICO, catsPes:CATS_PES_PICO},
+  {id:"criar", nome:"CRIAR Centro Educacional", seg:"Educação",  hasPessoal:false,
+   cor:P.blue,   corL:P.blueL,   corT:"#2558A0", corPale:P.bluePale,
+   catsEmp:CATS_EMP_CRIAR, catsPes:[]},
 ];
 
-const fmt = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const pct = (a,b) => b>0?((a/b)*100).toFixed(1):"0.0";
-const ag  = list => { const m={}; list.forEach(l=>{m[l.categoria]=(m[l.categoria]||0)+l.valor;}); return Object.entries(m).map(([cat,val])=>({cat,val,cor:CAT_COR[cat]||P.muted})).sort((a,b)=>b.val-a.val); };
+const fmt  = v  => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pct  = (a,b) => b>0?((a/b)*100).toFixed(1):"0.0";
+const ag   = list => { const m={}; list.forEach(l=>{m[l.categoria]=(m[l.categoria]||0)+l.valor;}); return Object.entries(m).map(([cat,val])=>({cat,val,cor:CAT_COR[cat]||P.muted})).sort((a,b)=>b.val-a.val); };
+const uid  = () => crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)+Date.now();
+const hoje = () => new Date().toISOString().slice(0,10);
 
+// ─── CSS ──────────────────────────────────────────────────────────────────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
@@ -67,6 +91,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .pulse{animation:pulse 2s ease-in-out infinite}
 @keyframes newbadge{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
 .newbadge{animation:newbadge .3s ease}
+.inp{width:100%;border:1.5px solid ${P.border};border-radius:10px;padding:11px 13px;font-size:14px;font-family:'Sora',sans-serif;background:rgba(255,255,255,.9);color:${P.text};outline:none;transition:border .18s;-webkit-appearance:none;appearance:none}
+.inp:focus{border-color:${P.blue};box-shadow:0 0 0 3px rgba(79,134,198,.10)}
+.inp-err{border-color:${P.red}!important}
+.seg{cursor:pointer;border-radius:20px;border:1.5px solid ${P.border};padding:7px 13px;font-family:'Sora',sans-serif;font-weight:600;font-size:10px;letter-spacing:.05em;text-align:center;transition:all .18s;background:rgba(255,255,255,.82);color:${P.muted}}
+.seg.on{color:#fff;box-shadow:0 2px 10px rgba(60,100,150,.2)}
+.overlay{position:fixed;inset:0;background:rgba(30,45,61,.5);z-index:200;display:flex;align-items:flex-end;backdrop-filter:blur(3px)}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:8px 20px 48px;width:100%;max-width:480px;margin:0 auto;max-height:92vh;overflow-y:auto;animation:up .26s cubic-bezier(.32,.72,0,1)}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.handle{width:36px;height:4px;background:#E8EDF5;border-radius:2px;margin:12px auto 20px}
+.btn{width:100%;border:none;border-radius:12px;padding:14px;font-size:14px;font-family:'Sora',sans-serif;font-weight:700;letter-spacing:.04em;cursor:pointer;transition:all .2s}
+.btn-main{color:#fff} .btn-main:hover{opacity:.9} .btn-main:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:none;border:1.5px solid ${P.border};color:${P.muted};margin-top:10px}
+.btn-ghost:hover{border-color:${P.blue};color:${P.blue}}
 ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-thumb{background:rgba(79,134,198,.22);border-radius:2px}
 `;
 
@@ -130,6 +167,111 @@ function Logo({id,size=42}) {
   );
 }
 
+// ─── FORM LANÇAMENTO ─────────────────────────────────────────────────────────────
+function FormLancamento({c, mes, onSaved, onClose}) {
+  const [cls,  setCls]  = useState("empresa");
+  const [cat,  setCat]  = useState("");
+  const [desc, setDesc] = useState("");
+  const [val,  setVal]  = useState("");
+  const [meio, setMeio] = useState("Pix");
+  const [data, setData] = useState(mes+"-"+new Date().toISOString().slice(8,10));
+  const [obs,  setObs]  = useState("");
+  const [err,  setErr]  = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const cats = cls==="empresa" ? c.catsEmp : c.catsPes;
+  const set  = (k,v) => { if(k==="cls"){setCls(v);setCat("");} else if(k==="cat")setCat(v); else if(k==="desc")setDesc(v); else if(k==="val")setVal(v); else if(k==="meio")setMeio(v); else if(k==="data")setData(v); else setObs(v); setErr(e=>({...e,[k]:false})); };
+
+  const salvar = async () => {
+    const e={};
+    if(!cat) e.cat=true;
+    if(!desc.trim()) e.desc=true;
+    const v=parseFloat(val.replace(",","."));
+    if(!v||v<=0) e.val=true;
+    if(!data) e.data=true;
+    if(Object.keys(e).length){setErr(e);return;}
+    setBusy(true);
+    const item={id:uid(),cliente_id:c.id,mes,centro:cls,categoria:cat,descricao:desc.trim(),valor:v,meio,data,obs,excluido:false,recorrente:false,motivo_exclusao:""};
+    const res=await sbPost(item);
+    setBusy(false);
+    if(res){onSaved();onClose();}
+    else setErr({geral:"Erro ao salvar. Verifique a conexão."});
+  };
+
+  const LBL={fontSize:10,color:P.muted,letterSpacing:".12em",textTransform:"uppercase",fontWeight:600,display:"block",marginBottom:7};
+  const E=({k})=>err[k]?<div style={{fontSize:11,color:P.red,marginTop:4,fontWeight:600}}>Obrigatório</div>:null;
+
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+      <div className="sheet">
+        <div className="handle"/>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+          <Logo id={c.id} size={36}/>
+          <div>
+            <div style={{fontSize:11,color:P.muted,letterSpacing:".1em",textTransform:"uppercase",fontWeight:600}}>Novo lançamento</div>
+            <div style={{fontSize:16,fontWeight:700,color:P.text}}>{c.nome}</div>
+          </div>
+          <button onClick={onClose} style={{marginLeft:"auto",background:"none",border:"none",color:P.muted,fontSize:20,cursor:"pointer"}}>×</button>
+        </div>
+
+        {err.geral&&<div style={{background:P.redL,border:`1px solid ${P.red}33`,borderRadius:8,padding:"10px 13px",fontSize:12,color:P.red,marginBottom:14,fontWeight:600}}>{err.geral}</div>}
+
+        {c.hasPessoal&&(
+          <div style={{marginBottom:16}}>
+            <span style={LBL}>Tipo *</span>
+            <div style={{display:"flex",gap:8}}>
+              {[["empresa","🏢 Empresa"],["pessoal","👤 Pessoal"]].map(([v,l])=>(
+                <div key={v} className={`seg${cls===v?" on":""}`} style={cls===v?{background:c.cor,borderColor:c.cor}:{}} onClick={()=>set("cls",v)}>{l}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{marginBottom:14}}>
+          <label style={LBL}>Categoria *</label>
+          <select className={`inp${err.cat?" inp-err":""}`} value={cat} onChange={e=>set("cat",e.target.value)}>
+            <option value="">Selecione…</option>
+            {cats.map(ct=><option key={ct}>{ct}</option>)}
+          </select><E k="cat"/>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={LBL}>Descrição *</label>
+          <input className={`inp${err.desc?" inp-err":""}`} placeholder="Ex: Aluguel, Pagamento Lucas…" value={desc} onChange={e=>set("desc",e.target.value)}/><E k="desc"/>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={LBL}>Valor (R$) *</label>
+          <input className={`inp${err.val?" inp-err":""}`} type="number" inputMode="decimal" placeholder="0,00" value={val} onChange={e=>set("val",e.target.value)}/><E k="val"/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+          <div>
+            <label style={LBL}>Meio</label>
+            <select className="inp" value={meio} onChange={e=>set("meio",e.target.value)}>
+              {MEIOS.map(m=><option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={LBL}>Data *</label>
+            <input className={`inp${err.data?" inp-err":""}`} type="date" value={data} onChange={e=>set("data",e.target.value)}/><E k="data"/>
+          </div>
+        </div>
+
+        <div style={{marginBottom:22}}>
+          <label style={LBL}>Observação</label>
+          <textarea className="inp" style={{minHeight:56,resize:"none",fontSize:13}} placeholder="Opcional…" value={obs} onChange={e=>set("obs",e.target.value)}/>
+        </div>
+
+        <button className="btn btn-main" style={{background:c.cor}} onClick={salvar} disabled={busy}>
+          {busy?<><span className="spin"/> Salvando…</>:"✓ Registrar Lançamento"}
+        </button>
+        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────────
 function Dashboard({c,lancs,lancsAnt}) {
   const emp=lancs.filter(l=>l.centro==="empresa");
@@ -146,16 +288,15 @@ function Dashboard({c,lancs,lancsAnt}) {
     <div className="fu glass" style={{borderRadius:14,padding:"36px",textAlign:"center",marginTop:8}}>
       <div style={{fontSize:36,marginBottom:8}}>📭</div>
       <div style={{fontSize:14,color:P.muted,fontWeight:600}}>Nenhum lançamento neste mês</div>
-      <div style={{fontSize:11,color:P.muted,marginTop:4,opacity:.7}}>Os dados aparecerão assim que forem registrados nos apps</div>
+      <div style={{fontSize:11,color:P.muted,marginTop:4,opacity:.7}}>Os dados aparecerão assim que forem registrados</div>
     </div>
   );
 
   return (
     <div className="fu">
-      {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         {[
-          {l:"Total Geral",     v:fmt(total),  sub:`${lancs.length} lançamentos`,   cor:c.cor},
+          {l:"Total Geral",     v:fmt(total),  sub:`${lancs.length} lançamentos`,cor:c.cor},
           {l:"vs Mês Anterior", v:diff!=null?`${diff>0?"+":""}${diff.toFixed(1)}%`:"—",
            sub:diff!=null?(diff<0?"↓ reduziu":"↑ aumentou"):"sem comparativo",cor:diff!=null?(diff<0?P.green:P.red):P.muted},
           {l:"Empresa",v:fmt(totE),sub:`${pct(totE,total)}% do total`,cor:c.cor},
@@ -169,7 +310,6 @@ function Dashboard({c,lancs,lancsAnt}) {
         ))}
       </div>
 
-      {/* Donut */}
       <div className="glass" style={{borderRadius:16,padding:"18px",marginBottom:14}}>
         <div style={{fontSize:10,color:P.muted,letterSpacing:".14em",textTransform:"uppercase",fontWeight:600,marginBottom:14}}>Distribuição por Categoria</div>
         <div style={{display:"flex",gap:16,alignItems:"center"}}>
@@ -194,7 +334,6 @@ function Dashboard({c,lancs,lancsAnt}) {
         </div>
       </div>
 
-      {/* Emp vs Pes */}
       {totP>0&&(
         <div className="glass" style={{borderRadius:16,padding:"18px",marginBottom:14}}>
           <div style={{fontSize:10,color:P.muted,letterSpacing:".14em",textTransform:"uppercase",fontWeight:600,marginBottom:12}}>Empresa × Pessoal</div>
@@ -215,7 +354,6 @@ function Dashboard({c,lancs,lancsAnt}) {
         </div>
       )}
 
-      {/* Comparativo */}
       {totAnt>0&&(
         <div className="glass" style={{borderRadius:16,padding:"18px",marginBottom:14}}>
           <div style={{fontSize:10,color:P.muted,letterSpacing:".14em",textTransform:"uppercase",fontWeight:600,marginBottom:14}}>Comparativo de Meses</div>
@@ -284,7 +422,7 @@ function Relatorio({c,lancs}) {
                   <Bar p={totBase>0?(val/totBase)*100:0} color={cc} h={4}/>
                   <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
                     <span style={{fontSize:10,color:P.muted}}>{itens.length} item(ns)</span>
-                    <span style={{fontSize:10,color:P.muted}}>{pct(val,totBase)}% centro · {pct(val,total)}% total</span>
+                    <span style={{fontSize:10,color:P.muted}}>{pct(val,totBase)}% · {pct(val,total)}% total</span>
                   </div>
                 </div>
                 <div style={{color:P.muted,fontSize:12,transition:"transform .2s",transform:open?"rotate(180deg)":"none",marginLeft:4}}>▾</div>
@@ -353,13 +491,17 @@ function Relatorio({c,lancs}) {
 }
 
 // ─── DETALHE ─────────────────────────────────────────────────────────────────────
-function Detalhe({c,mes,mesAnt,allLancs,onBack}) {
+function Detalhe({c,mes,mesAnt,allLancs,onBack,onRefresh}) {
   const lancs   =allLancs.filter(l=>l.cliente_id===c.id);
   const lancsAnt=allLancs.filter(l=>l.cliente_id===c.id&&l.mes===mesAnt);
   const [tab,setTab]=useState("dashboard");
+  const [form,setForm]=useState(false);
   const total=lancs.reduce((s,l)=>s+l.valor,0);
+
   return (
     <div>
+      {form&&<FormLancamento c={c} mes={mes} onSaved={()=>{onRefresh();setForm(false);}} onClose={()=>setForm(false)}/>}
+
       <div className="glass" style={{borderRadius:0,borderLeft:"none",borderRight:"none",borderTop:"none",padding:"14px 20px 0",position:"sticky",top:0,zIndex:10,boxShadow:"0 4px 18px rgba(60,100,150,.07)"}}>
         <button onClick={onBack} style={{background:"none",border:"none",color:P.muted,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6,fontFamily:"'Sora',sans-serif",fontWeight:600,letterSpacing:".1em",textTransform:"uppercase",padding:0}}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -385,10 +527,16 @@ function Detalhe({c,mes,mesAnt,allLancs,onBack}) {
           ))}
         </div>
       </div>
-      <div style={{padding:"18px 20px 60px"}}>
+      <div style={{padding:"18px 20px 80px"}}>
         {tab==="dashboard"&&<Dashboard c={c} lancs={lancs} lancsAnt={lancsAnt}/>}
         {tab==="relatorio"&&<Relatorio c={c} lancs={lancs}/>}
       </div>
+
+      {/* FAB lançamento */}
+      <button onClick={()=>setForm(true)}
+        style={{position:"fixed",bottom:24,right:20,background:c.cor,color:"#fff",border:"none",borderRadius:14,padding:"13px 20px",fontSize:13,fontWeight:700,fontFamily:"'Sora',sans-serif",cursor:"pointer",boxShadow:`0 6px 20px ${c.cor}55`,zIndex:100,display:"flex",alignItems:"center",gap:8,letterSpacing:".02em"}}>
+        + Novo lançamento
+      </button>
     </div>
   );
 }
@@ -451,10 +599,10 @@ export default function PainelConsultor() {
   const carregar = async (silent=false) => {
     if(!silent) setLoading(true);
     const data = await fetchMes(mes);
-    const arr  = data || [];
+    const arr  = data||[];
     setLancs(arr);
-    setPrevCnt(prev => {
-      if(prev>0 && arr.length>prev) setNovos(n=>n+(arr.length-prev));
+    setPrevCnt(prev=>{
+      if(prev>0&&arr.length>prev) setNovos(n=>n+(arr.length-prev));
       return arr.length;
     });
     setLastSync(new Date());
@@ -487,7 +635,6 @@ export default function PainelConsultor() {
               gestão fora da <em style={{color:P.blue}}>caixa</em>
             </div>
           </div>
-          {/* Indicador ao vivo */}
           <div style={{position:"relative"}}>
             <div style={{background:P.blueL,borderRadius:12,padding:"9px 13px",border:`1px solid ${P.border}`,display:"flex",alignItems:"center",gap:8}}>
               {loading?<span className="spin"/>:<div style={{width:7,height:7,borderRadius:"50%",background:P.green}} className="pulse"/>}
@@ -504,7 +651,6 @@ export default function PainelConsultor() {
           </div>
         </div>
 
-        {/* Mês */}
         <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(120,160,200,.10)",borderRadius:12,padding:"6px 10px",border:`1px solid ${P.border}`}}>
           <button onClick={()=>setMesIdx(i=>Math.max(0,i-1))} disabled={mesIdx===0}
             style={{background:"none",border:"none",cursor:"pointer",color:P.muted,display:"flex",padding:4,opacity:mesIdx===0?.3:1}}>
@@ -519,10 +665,9 @@ export default function PainelConsultor() {
       </div>
 
       {co?(
-        <Detalhe c={co} mes={mes} mesAnt={mesAnt} allLancs={lancs} onBack={()=>setSel(null)}/>
+        <Detalhe c={co} mes={mes} mesAnt={mesAnt} allLancs={lancs} onBack={()=>setSel(null)} onRefresh={()=>carregar(true)}/>
       ):(
         <div style={{padding:"20px 16px 60px"}}>
-          {/* Card geral */}
           <div className="glass" style={{borderRadius:16,padding:"22px 20px",marginBottom:20,boxShadow:P.shadow}}>
             <div style={{fontSize:9,color:P.muted,letterSpacing:".2em",textTransform:"uppercase",marginBottom:4,fontWeight:600}}>Total da Carteira — {MESES_LABEL[mes]}</div>
             {loading&&lancs.length===0?(
@@ -551,8 +696,7 @@ export default function PainelConsultor() {
                 })}
                 {totalGeral===0&&(
                   <div style={{textAlign:"center",padding:"16px 0",color:P.muted,fontSize:13}}>
-                    Nenhum lançamento registrado neste mês.<br/>
-                    <span style={{fontSize:11,opacity:.6}}>Aguardando dados dos apps dos clientes.</span>
+                    Nenhum lançamento registrado neste mês.
                   </div>
                 )}
               </>
