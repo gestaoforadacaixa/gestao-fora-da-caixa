@@ -287,6 +287,128 @@ function FormLancamento({ c, mes, onSaved, onClose }) {
   );
 }
 
+// ─── EDITAR LANÇAMENTO ───────────────────────────────────────────────────────────
+function EditarLancamento({ c, item, onDone, onClose }) {
+  const [cls, setCls]   = useState(item.centro || "empresa");
+  const [cat, setCat]   = useState(item.categoria);
+  const [desc, setDesc] = useState(item.descricao);
+  const [val, setVal]   = useState(String(item.valor));
+  const [meio, setMeio] = useState(item.meio);
+  const [data, setData] = useState(item.data);
+  const [obs, setObs]   = useState(item.obs || "");
+  const [busy, setBusy] = useState(false);
+  const [delMode, setDelMode] = useState(false);
+  const [motivo, setMotivo]   = useState("");
+  const [mErr, setMErr]       = useState(false);
+
+  const cats = cls === "empresa" ? c.catsEmp : c.catsPes;
+  const LBL = { fontSize: 10, color: P.muted, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, display: "block", marginBottom: 7 };
+
+  const salvar = async () => {
+    const v = parseFloat(val.replace(",", "."));
+    if (!cat || !desc.trim() || !v || v <= 0 || !data) return;
+    setBusy(true);
+    await sbPatch(item.id, { centro: cls, categoria: cat, descricao: desc.trim(), valor: v, meio, data, mes: data.slice(0, 7), obs });
+    setBusy(false);
+    onDone(); onClose();
+  };
+
+  const excluir = async () => {
+    if (!motivo.trim()) { setMErr(true); return; }
+    setBusy(true);
+    await sbPatch(item.id, { excluido: true, motivo_exclusao: motivo.trim() });
+    setBusy(false);
+    onDone(); onClose();
+  };
+
+  return (
+    <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet">
+        <div className="handle" />
+        {!delMode ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <Logo id={c.id} size={36} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: P.muted, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>Editar lançamento</div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>{c.nome}</div>
+              </div>
+              <button onClick={onClose} style={{ background: "none", border: "none", color: P.muted, fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            {c.hasPessoal && (
+              <div style={{ marginBottom: 16 }}>
+                <span style={LBL}>Tipo</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[["empresa", "🏢 Empresa"], ["pessoal", "👤 Pessoal"]].map(([v, l]) => (
+                    <div key={v} className={`seg${cls === v ? " on" : ""}`} style={cls === v ? { background: c.cor, borderColor: c.cor } : {}} onClick={() => { setCls(v); setCat(""); }}>{l}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ marginBottom: 14 }}>
+              <label style={LBL}>Categoria</label>
+              <select className="inp" value={cat} onChange={e => setCat(e.target.value)}>
+                <option value="">Selecione…</option>
+                {cats.map(ct => <option key={ct}>{ct}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={LBL}>Descrição</label>
+              <input className="inp" value={desc} onChange={e => setDesc(e.target.value)} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={LBL}>Valor (R$)</label>
+              <input className="inp" type="number" inputMode="decimal" value={val} onChange={e => setVal(e.target.value)} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div>
+                <label style={LBL}>Meio</label>
+                <select className="inp" value={meio} onChange={e => setMeio(e.target.value)}>
+                  {MEIOS.map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={LBL}>Data</label>
+                <input className="inp" type="date" value={data} onChange={e => setData(e.target.value)} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={LBL}>Observação</label>
+              <textarea className="inp" style={{ minHeight: 56, resize: "none", fontSize: 13 }} value={obs} onChange={e => setObs(e.target.value)} />
+            </div>
+            <button className="btn btn-main" style={{ background: c.cor }} onClick={salvar} disabled={busy}>
+              {busy ? <><span className="spin" /> Salvando…</> : "✓ Salvar Alterações"}
+            </button>
+            <button className="btn" style={{ background: "none", border: `1.5px solid ${P.red}`, color: P.red, marginTop: 10 }} onClick={() => setDelMode(true)}>
+              Excluir Lançamento
+            </button>
+            <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 18, fontWeight: 700, color: P.red, marginBottom: 6 }}>Excluir Lançamento</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{item.descricao}</div>
+            <div style={{ fontSize: 13, color: P.muted, marginBottom: 18 }}>{fmt(item.valor)} · {fd(item.data)}</div>
+            <div style={{ background: P.redL, border: `1px solid ${P.red}33`, borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 13, color: P.red, fontWeight: 600 }}>
+              O valor será excluído da soma total.
+            </div>
+            <label style={LBL}>Motivo *</label>
+            <textarea className="inp" style={{ minHeight: 76, resize: "none", borderColor: mErr ? P.red : undefined }}
+              placeholder="Descreva o motivo…" value={motivo}
+              onChange={e => { setMotivo(e.target.value); setMErr(false); }} />
+            {mErr && <div style={{ fontSize: 11, color: P.red, marginTop: 4, fontWeight: 600 }}>Informe o motivo</div>}
+            <div style={{ height: 16 }} />
+            <button className="btn" style={{ background: P.red, color: "#fff" }} onClick={excluir} disabled={busy}>
+              {busy ? <><span className="spin" /> Excluindo…</> : "Confirmar Exclusão"}
+            </button>
+            <button className="btn btn-ghost" onClick={() => setDelMode(false)}>Voltar</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────────
 function Dashboard({ c, lancs, lancsAnt }) {
   const emp = lancs.filter(l => l.centro === "empresa");
@@ -460,9 +582,10 @@ function Relatorio({ c, lancs }) {
 }
 
 // ─── HISTÓRICO ────────────────────────────────────────────────────────────────────
-function Historico({ c, lancs }) {
+function Historico({ c, lancs, onRefresh }) {
   const [filtro, setFiltro] = useState("todos");
   const [busca, setBusca]   = useState("");
+  const [editItem, setEditItem] = useState(null);
 
   const filtrados = useMemo(() => {
     let list = [...lancs].sort((a, b) => b.data.localeCompare(a.data));
@@ -476,6 +599,8 @@ function Historico({ c, lancs }) {
 
   return (
     <div className="fu">
+      {editItem && <EditarLancamento c={c} item={editItem} onDone={onRefresh} onClose={() => setEditItem(null)} />}
+
       {/* Filtros */}
       <div className="glass" style={{ borderRadius: 14, padding: "14px 16px", marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -536,10 +661,26 @@ function Historico({ c, lancs }) {
                   {it.recorrente && (
                     <span style={{ fontSize: 9, background: `${c.cor}18`, color: c.cor, borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>↻ REC</span>
                   )}
+                  {it.excluido && it.motivo_exclusao && (
+                    <span style={{ fontSize: 9, background: `${P.red}18`, color: P.red, borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>Excluído: {it.motivo_exclusao}</span>
+                  )}
                 </div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: it.excluido ? "#CCC" : P.text, flexShrink: 0 }}>
-                {fmt(it.valor)}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: it.excluido ? "#CCC" : P.text }}>
+                  {fmt(it.valor)}
+                </div>
+                {!it.excluido && (
+                  <button onClick={() => setEditItem(it)}
+                    style={{ background: "none", border: `1px solid ${P.border}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: P.muted, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s", flexShrink: 0 }}
+                    onMouseEnter={e => e.currentTarget.style.color = c.cor}
+                    onMouseLeave={e => e.currentTarget.style.color = P.muted}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -590,7 +731,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, onBack, onRefresh }) {
       <div style={{ padding: "18px 20px 80px" }}>
         {tab === "dashboard" && <Dashboard c={c} lancs={lancs} lancsAnt={lancsAnt} />}
         {tab === "relatorio" && <Relatorio c={c} lancs={lancs} />}
-        {tab === "historico" && <Historico c={c} lancs={lancs} />}
+        {tab === "historico" && <Historico c={c} lancs={lancs} onRefresh={onRefresh} />}
       </div>
 
       <button onClick={() => setForm(true)}
