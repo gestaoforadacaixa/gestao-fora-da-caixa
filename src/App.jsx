@@ -55,11 +55,20 @@ const CATS_PES_PICO  = ["Alimentação","Compromissos Financeiros","Lazer","Mora
 const CATS_EMP_CRIAR = ["Administrativo","Alimentação","Infraestrutura","Material Didático","Mensalidades","Salários","Serviços","Transporte"];
 const MEIOS          = ["Crédito","Débito","Dinheiro","Pix","Transferência"];
 
-const MESES_DISP  = ["2026-04","2026-05","2026-06","2026-07","2026-08","2026-09"];
-const MESES_LABEL = {
-  "2026-04": "Abril 2026", "2026-05": "Maio 2026", "2026-06": "Junho 2026",
-  "2026-07": "Julho 2026", "2026-08": "Agosto 2026", "2026-09": "Setembro 2026",
-};
+const NOMES_MES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+function gerarMeses() {
+  const arr = [];
+  const labels = {};
+  const hj = new Date();
+  for (let i = -3; i <= 3; i++) {
+    const d = new Date(hj.getFullYear(), hj.getMonth() + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    arr.push(key);
+    labels[key] = `${NOMES_MES[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  return { arr, labels, idxAtual: 3 };
+}
+const { arr: MESES_DISP, labels: MESES_LABEL, idxAtual: IDX_ATUAL } = gerarMeses();
 
 const CLIENTES = [
   { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: "#B85C20", corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
@@ -205,7 +214,7 @@ function FormLancamento({ c, mes, onSaved, onClose }) {
     if (!data) e.data = true;
     if (Object.keys(e).length) { setErr(e); return; }
     setBusy(true);
-    const item = { id: uid(), cliente_id: c.id, mes, centro: cls, categoria: cat, descricao: desc.trim(), valor: v, meio, data, obs, excluido: false, recorrente: false, motivo_exclusao: "" };
+    const item = { id: uid(), cliente_id: c.id, mes: data.slice(0, 7), centro: cls, categoria: cat, descricao: desc.trim(), valor: v, meio, data, obs, excluido: false, recorrente: false, motivo_exclusao: "" };
     const res = await sbPost(item);
     setBusy(false);
     if (res) { onSaved(); onClose(); }
@@ -670,7 +679,7 @@ function Card({ c, lancs, ultimaData, onClick }) {
 
 // ─── APP ─────────────────────────────────────────────────────────────────────────
 export default function PainelConsultor() {
-  const [mesIdx,    setMesIdx]    = useState(0);
+  const [mesIdx,    setMesIdx]    = useState(IDX_ATUAL);
   const [sel,       setSel]       = useState(null);
   const [lancs,     setLancs]     = useState([]);
   const [loading,   setLoading]   = useState(true);
