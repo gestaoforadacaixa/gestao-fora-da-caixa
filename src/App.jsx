@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
-
 const SUPA_URL = "https://oltwaosdzgvbbvermilk.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sdHdhb3Nkemd2YmJ2ZXJtaWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDU3MjksImV4cCI6MjA5NDEyMTcyOX0.WbDR65w6eywTgLc4Lwii_63RrJwKPN9oj1DsgjxeFBo";
 const SBH = { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}` };
 const SBH_W = { ...SBH, "Content-Type": "application/json", "Prefer": "return=representation" };
-
 async function fetchMes(mes) {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?mes=eq.${mes}&excluido=eq.false&order=data.desc`, { headers: SBH });
@@ -14,6 +12,12 @@ async function fetchMes(mes) {
 async function fetchUltimos(clienteId) {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?cliente_id=eq.${clienteId}&excluido=eq.false&order=data.desc&limit=1`, { headers: SBH });
+    return r.ok ? r.json() : [];
+  } catch { return []; }
+}
+async function fetchReceitas(clienteId, mes) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/receitas?cliente_id=eq.${clienteId}&mes=eq.${mes}&order=data_de.desc.nullslast`, { headers: SBH });
     return r.ok ? r.json() : [];
   } catch { return []; }
 }
@@ -29,7 +33,6 @@ async function sbPatch(id, b) {
     return r.ok;
   } catch { return false; }
 }
-
 const P = {
   blue: "#4F86C6", blueL: "rgba(79,134,198,0.10)", bluePale: "#EAF1FA",
   orange: "#E8854E", orangeL: "rgba(232,133,78,0.10)", orangePale: "#FEF0E6",
@@ -40,7 +43,6 @@ const P = {
   bg: "#F2F6FA", glass: "rgba(255,255,255,0.82)",
   shadow: "0 4px 24px rgba(60,100,150,0.09)",
 };
-
 const CAT_COR = {
   "Funcionário": P.orange, "Infraestrutura": P.blue, "Administrativo": P.green,
   "Insumos": P.purple, "Investimento": "#F0A050", "Outros": P.muted,
@@ -49,12 +51,10 @@ const CAT_COR = {
   "Mensalidades": P.green, "Material Didático": P.purple,
   "Marketing": "#E882B4", "Lazer": "#7BC8A4", "Serviços": "#16A085",
 };
-
 const CATS_EMP_PICO  = ["Administrativo","Funcionário","Infraestrutura","Insumos","Investimento","Marketing","Outros"];
 const CATS_PES_PICO  = ["Alimentação","Compromissos Financeiros","Lazer","Moradia","Reserva","Transporte","Outros"];
 const CATS_EMP_CRIAR = ["Administrativo","Alimentação","Infraestrutura","Material Didático","Mensalidades","Salários","Serviços","Transporte"];
 const MEIOS          = ["Crédito","Débito","Dinheiro","Pix","Transferência"];
-
 const NOMES_MES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 function gerarMeses() {
   const arr = [];
@@ -69,18 +69,15 @@ function gerarMeses() {
   return { arr, labels, idxAtual: 3 };
 }
 const { arr: MESES_DISP, labels: MESES_LABEL, idxAtual: IDX_ATUAL } = gerarMeses();
-
 const CLIENTES = [
   { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: "#B85C20", corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
   { id: "criar", nome: "CRIAR Centro Educacional",  seg: "Educação",  hasPessoal: false, cor: P.blue,   corL: P.blueL,   corT: "#2558A0", corPale: P.bluePale,   catsEmp: CATS_EMP_CRIAR, catsPes: [] },
 ];
-
 const fmt  = v  => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const pct  = (a, b) => b > 0 ? ((a / b) * 100).toFixed(1) : "0.0";
 const ag   = list => { const m = {}; list.forEach(l => { m[l.categoria] = (m[l.categoria] || 0) + l.valor; }); return Object.entries(m).map(([cat, val]) => ({ cat, val, cor: CAT_COR[cat] || P.muted })).sort((a, b) => b.val - a.val); };
 const uid  = () => crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now();
 const fd   = d  => { const [, m, day] = d.split("-"); return `${day}/${m}`; };
-
 // Dias sem lançar
 const diasSemLancar = (ultimaData) => {
   if (!ultimaData) return 999;
@@ -88,7 +85,6 @@ const diasSemLancar = (ultimaData) => {
   const ult = new Date(ultimaData);
   return Math.floor((hoje - ult) / (1000 * 60 * 60 * 24));
 };
-
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -123,7 +119,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .search-inp:focus { border-color: ${P.blue}; }
 ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-thumb { background: rgba(79,134,198,.22); border-radius: 2px; }
 `;
-
 function Bar({ p, color, h = 5 }) {
   return (
     <div style={{ background: "rgba(120,160,200,.12)", borderRadius: 4, height: h, overflow: "hidden" }}>
@@ -131,7 +126,6 @@ function Bar({ p, color, h = 5 }) {
     </div>
   );
 }
-
 function Donut({ segs, size = 96 }) {
   const r = 28, cx = 45, cy = 45, circ = 2 * Math.PI * r;
   const total = segs.reduce((s, sg) => s + sg.val, 0);
@@ -149,7 +143,6 @@ function Donut({ segs, size = 96 }) {
     </svg>
   );
 }
-
 function Logo({ id, size = 42 }) {
   if (id === "pico") return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
@@ -183,7 +176,6 @@ function Logo({ id, size = 42 }) {
     </svg>
   );
 }
-
 // ─── FORM LANÇAMENTO ─────────────────────────────────────────────────────────────
 function FormLancamento({ c, mes, onSaved, onClose }) {
   const [cls, setCls]   = useState("empresa");
@@ -195,7 +187,6 @@ function FormLancamento({ c, mes, onSaved, onClose }) {
   const [obs, setObs]   = useState("");
   const [err, setErr]   = useState({});
   const [busy, setBusy] = useState(false);
-
   const cats = cls === "empresa" ? c.catsEmp : c.catsPes;
   const set = (k, v) => {
     if (k === "cls") { setCls(v); setCat(""); }
@@ -204,7 +195,6 @@ function FormLancamento({ c, mes, onSaved, onClose }) {
     else if (k === "data") setData(v); else setObs(v);
     setErr(e => ({ ...e, [k]: false }));
   };
-
   const salvar = async () => {
     const e = {};
     if (!cat) e.cat = true;
@@ -220,10 +210,8 @@ function FormLancamento({ c, mes, onSaved, onClose }) {
     if (res) { onSaved(); onClose(); }
     else setErr({ geral: "Erro ao salvar." });
   };
-
   const LBL = { fontSize: 10, color: P.muted, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, display: "block", marginBottom: 7 };
   const E = ({ k }) => err[k] ? <div style={{ fontSize: 11, color: P.red, marginTop: 4, fontWeight: 600 }}>Obrigatório</div> : null;
-
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
@@ -286,7 +274,6 @@ function FormLancamento({ c, mes, onSaved, onClose }) {
     </div>
   );
 }
-
 // ─── EDITAR LANÇAMENTO ───────────────────────────────────────────────────────────
 function EditarLancamento({ c, item, onDone, onClose }) {
   const [cls, setCls]   = useState(item.centro || "empresa");
@@ -300,10 +287,8 @@ function EditarLancamento({ c, item, onDone, onClose }) {
   const [delMode, setDelMode] = useState(false);
   const [motivo, setMotivo]   = useState("");
   const [mErr, setMErr]       = useState(false);
-
   const cats = cls === "empresa" ? c.catsEmp : c.catsPes;
   const LBL = { fontSize: 10, color: P.muted, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, display: "block", marginBottom: 7 };
-
   const salvar = async () => {
     const v = parseFloat(val.replace(",", "."));
     if (!cat || !desc.trim() || !v || v <= 0 || !data) return;
@@ -312,7 +297,6 @@ function EditarLancamento({ c, item, onDone, onClose }) {
     setBusy(false);
     onDone(); onClose();
   };
-
   const excluir = async () => {
     if (!motivo.trim()) { setMErr(true); return; }
     setBusy(true);
@@ -320,7 +304,6 @@ function EditarLancamento({ c, item, onDone, onClose }) {
     setBusy(false);
     onDone(); onClose();
   };
-
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
@@ -408,7 +391,72 @@ function EditarLancamento({ c, item, onDone, onClose }) {
     </div>
   );
 }
-
+// ─── CAIXA ────────────────────────────────────────────────────────────────────────
+function CaixaMentor({ c, mes, despesaTotal }) {
+  const [receitas, setReceitas] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  useEffect(() => {
+    let ativo = true;
+    setLoading(true);
+    fetchReceitas(c.id, mes).then(r => { if (ativo) { setReceitas(r || []); setLoading(false); } });
+    const t = setInterval(() => {
+      fetchReceitas(c.id, mes).then(r => { if (ativo) setReceitas(r || []); });
+    }, 5000);
+    return () => { ativo = false; clearInterval(t); };
+  }, [c.id, mes]);
+  const totalReceita = receitas.reduce((s, r) => s + r.valor, 0);
+  const saldo = totalReceita - despesaTotal;
+  const receitasOrd = [...receitas].sort((a, b) => (b.data_de || b.semana || "").localeCompare(a.data_de || a.semana || ""));
+  if (loading) return (
+    <div style={{ textAlign: "center", padding: "40px 0" }}><span className="spin" /></div>
+  );
+  return (
+    <div className="fu">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <div className="glass" style={{ borderRadius: 14, padding: "14px", borderLeft: `3px solid ${P.green}` }}>
+          <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Receita</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: P.green, fontFamily: "'DM Serif Display',serif" }}>{fmt(totalReceita)}</div>
+          <div style={{ fontSize: 10, color: P.muted, marginTop: 4 }}>{receitas.length} entrada(s)</div>
+        </div>
+        <div className="glass" style={{ borderRadius: 14, padding: "14px", borderLeft: `3px solid ${P.red}` }}>
+          <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Despesa</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: P.red, fontFamily: "'DM Serif Display',serif" }}>{fmt(despesaTotal)}</div>
+          <div style={{ fontSize: 10, color: P.muted, marginTop: 4 }}>lançamentos do mês</div>
+        </div>
+      </div>
+      <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 14, borderLeft: `3px solid ${saldo >= 0 ? P.green : P.red}` }}>
+        <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 6 }}>Saldo do Mês</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: saldo >= 0 ? P.green : P.red, fontFamily: "'DM Serif Display',serif" }}>{fmt(saldo)}</div>
+          <div style={{ fontSize: 11, color: P.muted, fontWeight: 600 }}>{saldo >= 0 ? "positivo" : "negativo"}</div>
+        </div>
+      </div>
+      <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Recebimentos</div>
+      {receitasOrd.length === 0 ? (
+        <div className="glass" style={{ borderRadius: 14, padding: "32px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>💰</div>
+          <div style={{ fontSize: 13, color: P.muted, fontWeight: 600 }}>Nenhum recebimento neste mês</div>
+        </div>
+      ) : (
+        <div className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
+          {receitasOrd.map((r, i) => (
+            <div key={r.id} style={{ padding: "12px 16px", borderBottom: i < receitasOrd.length - 1 ? `1px solid ${P.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 4, height: 34, background: P.green, borderRadius: 2, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.descricao}</div>
+                <div style={{ fontSize: 10, color: P.muted, marginTop: 2 }}>
+                  {r.data_de ? `${fd(r.data_de)} → ${fd(r.data_ate || r.data_de)}` : (r.semana ? fd(r.semana) : "—")}
+                </div>
+                {r.obs && <div style={{ fontSize: 10, color: P.muted, marginTop: 1, fontStyle: "italic" }}>{r.obs}</div>}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: P.green, fontFamily: "'DM Serif Display',serif", flexShrink: 0 }}>{fmt(r.valor)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────────
 function Dashboard({ c, lancs, lancsAnt }) {
   const emp = lancs.filter(l => l.centro === "empresa");
@@ -420,14 +468,12 @@ function Dashboard({ c, lancs, lancsAnt }) {
   const diff = totAnt > 0 ? ((total - totAnt) / totAnt * 100) : null;
   const cats = ag(lancs).slice(0, 5);
   const donut = ag(lancs).slice(0, 6);
-
   if (total === 0) return (
     <div className="fu glass" style={{ borderRadius: 14, padding: "36px", textAlign: "center", marginTop: 8 }}>
       <div style={{ fontSize: 36, marginBottom: 8 }}>📭</div>
       <div style={{ fontSize: 14, color: P.muted, fontWeight: 600 }}>Nenhum lançamento neste mês</div>
     </div>
   );
-
   return (
     <div className="fu">
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
@@ -444,7 +490,6 @@ function Dashboard({ c, lancs, lancsAnt }) {
           </div>
         ))}
       </div>
-
       <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 14 }}>
         <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>Distribuição por Categoria</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
@@ -468,7 +513,6 @@ function Dashboard({ c, lancs, lancsAnt }) {
           </div>
         </div>
       </div>
-
       {totP > 0 && (
         <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 14 }}>
           <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Empresa × Pessoal</div>
@@ -491,7 +535,6 @@ function Dashboard({ c, lancs, lancsAnt }) {
     </div>
   );
 }
-
 // ─── RELATÓRIO ────────────────────────────────────────────────────────────────────
 function Relatorio({ c, lancs }) {
   const [ab, setAb] = useState({});
@@ -501,7 +544,6 @@ function Relatorio({ c, lancs }) {
   const totE = emp.reduce((s, l) => s + l.valor, 0);
   const totP = pes.reduce((s, l) => s + l.valor, 0);
   const total = totE + totP;
-
   const Sec = ({ titulo, list, totBase, cor }) => {
     const cats = ag(list);
     return (
@@ -556,7 +598,6 @@ function Relatorio({ c, lancs }) {
       </div>
     );
   };
-
   return (
     <div className="fu">
       <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 18, borderLeft: `4px solid ${c.cor}` }}>
@@ -580,13 +621,11 @@ function Relatorio({ c, lancs }) {
     </div>
   );
 }
-
 // ─── HISTÓRICO ────────────────────────────────────────────────────────────────────
 function Historico({ c, lancs, onRefresh }) {
   const [filtro, setFiltro] = useState("todos");
   const [busca, setBusca]   = useState("");
   const [editItem, setEditItem] = useState(null);
-
   const filtrados = useMemo(() => {
     let list = [...lancs].sort((a, b) => b.data.localeCompare(a.data));
     if (filtro === "empresa") list = list.filter(l => l.centro === "empresa");
@@ -594,13 +633,10 @@ function Historico({ c, lancs, onRefresh }) {
     if (busca.trim()) list = list.filter(l => l.descricao.toLowerCase().includes(busca.toLowerCase()) || l.categoria.toLowerCase().includes(busca.toLowerCase()));
     return list;
   }, [lancs, filtro, busca]);
-
   const total = useMemo(() => filtrados.filter(l => !l.excluido).reduce((s, l) => s + l.valor, 0), [filtrados]);
-
   return (
     <div className="fu">
       {editItem && <EditarLancamento c={c} item={editItem} onDone={onRefresh} onClose={() => setEditItem(null)} />}
-
       {/* Filtros */}
       <div className="glass" style={{ borderRadius: 14, padding: "14px 16px", marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -610,7 +646,6 @@ function Historico({ c, lancs, onRefresh }) {
               onClick={() => setFiltro(v)}>{l}</div>
           ))}
         </div>
-
         {/* Busca */}
         <div style={{ position: "relative" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -621,13 +656,11 @@ function Historico({ c, lancs, onRefresh }) {
             value={busca} onChange={e => setBusca(e.target.value)} />
         </div>
       </div>
-
       {/* Contador */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, padding: "0 4px" }}>
         <div style={{ fontSize: 11, color: P.muted, fontWeight: 600 }}>{filtrados.length} lançamentos</div>
         <div style={{ fontSize: 13, fontWeight: 700, color: c.corT }}>{fmt(total)}</div>
       </div>
-
       {/* Lista */}
       {filtrados.length === 0 ? (
         <div className="glass" style={{ borderRadius: 14, padding: "36px", textAlign: "center" }}>
@@ -689,19 +722,16 @@ function Historico({ c, lancs, onRefresh }) {
     </div>
   );
 }
-
 // ─── DETALHE ─────────────────────────────────────────────────────────────────────
-function Detalhe({ c, mes, mesAnt, allLancs, onBack, onRefresh }) {
+function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
   const lancs    = allLancs.filter(l => l.cliente_id === c.id);
-  const lancsAnt = allLancs.filter(l => l.cliente_id === c.id && l.mes === mesAnt);
+  const lancsAnt = (allLancsAnt || []).filter(l => l.cliente_id === c.id);
   const [tab, setTab]   = useState("dashboard");
   const [form, setForm] = useState(false);
   const total = lancs.reduce((s, l) => s + l.valor, 0);
-
   return (
     <div>
       {form && <FormLancamento c={c} mes={mes} onSaved={() => { onRefresh(); setForm(false); }} onClose={() => setForm(false)} />}
-
       <div className="glass" style={{ borderRadius: 0, borderLeft: "none", borderRight: "none", borderTop: "none", padding: "14px 20px 0", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 4px 18px rgba(60,100,150,.07)" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: P.muted, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 6, fontFamily: "'Sora',sans-serif", fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", padding: 0 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -719,7 +749,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, onBack, onRefresh }) {
           </div>
         </div>
         <div style={{ display: "flex", borderTop: `1px solid ${P.border}` }}>
-          {[["dashboard", "Dashboard"], ["relatorio", "Relatório"], ["historico", "Histórico"]].map(([v, l]) => (
+          {[["caixa", "Caixa"], ["dashboard", "Dashboard"], ["relatorio", "Relatório"], ["historico", "Histórico"]].map(([v, l]) => (
             <button key={v} onClick={() => setTab(v)}
               style={{ flex: 1, padding: "10px 4px", fontSize: 11, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: tab === v ? c.cor : P.muted + "88", borderBottom: tab === v ? `2.5px solid ${c.cor}` : "2.5px solid transparent", border: "none", background: "none", cursor: "pointer", fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
               {l}
@@ -727,13 +757,12 @@ function Detalhe({ c, mes, mesAnt, allLancs, onBack, onRefresh }) {
           ))}
         </div>
       </div>
-
       <div style={{ padding: "18px 20px 80px" }}>
+        {tab === "caixa" && <CaixaMentor c={c} mes={mes} despesaTotal={total} />}
         {tab === "dashboard" && <Dashboard c={c} lancs={lancs} lancsAnt={lancsAnt} />}
         {tab === "relatorio" && <Relatorio c={c} lancs={lancs} />}
         {tab === "historico" && <Historico c={c} lancs={lancs} onRefresh={onRefresh} />}
       </div>
-
       <button onClick={() => setForm(true)}
         style={{ position: "fixed", bottom: 24, right: 20, background: c.cor, color: "#fff", border: "none", borderRadius: 14, padding: "13px 20px", fontSize: 13, fontWeight: 700, fontFamily: "'Sora',sans-serif", cursor: "pointer", boxShadow: `0 6px 20px ${c.cor}55`, zIndex: 100, display: "flex", alignItems: "center", gap: 8 }}>
         + Novo lançamento
@@ -741,7 +770,6 @@ function Detalhe({ c, mes, mesAnt, allLancs, onBack, onRefresh }) {
     </div>
   );
 }
-
 // ─── CARD ─────────────────────────────────────────────────────────────────────────
 function Card({ c, lancs, ultimaData, onClick }) {
   const totE = lancs.filter(l => l.centro === "empresa").reduce((s, l) => s + l.valor, 0);
@@ -749,10 +777,8 @@ function Card({ c, lancs, ultimaData, onClick }) {
   const total = totE + totP;
   const dias = diasSemLancar(ultimaData);
   const alerta = dias >= 3;
-
   return (
     <div className="lift glass" onClick={onClick} style={{ borderRadius: 16, padding: 20, boxShadow: total === 0 ? "none" : P.shadow, position: "relative", border: alerta ? `1.5px solid ${P.red}44` : `1px solid ${P.border}` }}>
-
       {/* Badge alerta inatividade */}
       {alerta && (
         <div className="alert-pulse" style={{
@@ -765,7 +791,6 @@ function Card({ c, lancs, ultimaData, onClick }) {
           ⚠ {dias === 999 ? "Sem lançamentos" : `${dias}d sem lançar`}
         </div>
       )}
-
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: total === 0 ? 0 : 14 }}>
         <Logo id={c.id} />
         <div style={{ flex: 1 }}>
@@ -787,7 +812,6 @@ function Card({ c, lancs, ultimaData, onClick }) {
           </div>
         )}
       </div>
-
       {total > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: totP > 0 ? "1fr 1fr" : "1fr", gap: 10 }}>
           <div>
@@ -808,7 +832,6 @@ function Card({ c, lancs, ultimaData, onClick }) {
           )}
         </div>
       )}
-
       {total === 0 && (
         <div style={{ fontSize: 11, color: P.muted, textAlign: "center", padding: "10px 0", opacity: .5 }}>
           Sem lançamentos neste mês
@@ -817,26 +840,28 @@ function Card({ c, lancs, ultimaData, onClick }) {
     </div>
   );
 }
-
 // ─── APP ─────────────────────────────────────────────────────────────────────────
 export default function PainelConsultor() {
   const [mesIdx,    setMesIdx]    = useState(IDX_ATUAL);
   const [sel,       setSel]       = useState(null);
   const [lancs,     setLancs]     = useState([]);
+  const [lancsAnt,  setLancsAnt]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [lastSync,  setLastSync]  = useState(null);
   const [novos,     setNovos]     = useState(0);
   const [prevCnt,   setPrevCnt]   = useState(0);
   const [ultimasDatas, setUltimasDatas] = useState({});
-
   const mes    = MESES_DISP[mesIdx];
   const mesAnt = mesIdx > 0 ? MESES_DISP[mesIdx - 1] : null;
-
   const carregar = async (silent = false) => {
     if (!silent) setLoading(true);
-    const data = await fetchMes(mes);
+    const [data, dataAnt] = await Promise.all([
+      fetchMes(mes),
+      mesAnt ? fetchMes(mesAnt) : Promise.resolve([]),
+    ]);
     const arr = data || [];
     setLancs(arr);
+    setLancsAnt(dataAnt || []);
     setPrevCnt(prev => {
       if (prev > 0 && arr.length > prev) setNovos(n => n + (arr.length - prev));
       return arr.length;
@@ -844,7 +869,6 @@ export default function PainelConsultor() {
     setLastSync(new Date());
     if (!silent) setLoading(false);
   };
-
   const carregarUltimasDatas = async () => {
     const datas = {};
     for (const c of CLIENTES) {
@@ -853,7 +877,6 @@ export default function PainelConsultor() {
     }
     setUltimasDatas(datas);
   };
-
   useEffect(() => { setSel(null); setLancs([]); setPrevCnt(0); setLoading(true); carregar(); }, [mes]);
   useEffect(() => {
     carregarUltimasDatas();
@@ -861,25 +884,20 @@ export default function PainelConsultor() {
     const t2 = setInterval(() => carregarUltimasDatas(), 30000);
     return () => { clearInterval(t1); clearInterval(t2); };
   }, [mes]);
-
   useEffect(() => {
     if (novos > 0) { const t = setTimeout(() => setNovos(0), 4000); return () => clearTimeout(t); }
   }, [novos]);
-
   const totalGeral = useMemo(() => lancs.reduce((s, l) => s + l.valor, 0), [lancs]);
   const porCliente = useMemo(() => {
     const m = {};
     CLIENTES.forEach(c => { m[c.id] = lancs.filter(l => l.cliente_id === c.id); });
     return m;
   }, [lancs]);
-
   const alertas = useMemo(() => CLIENTES.filter(c => diasSemLancar(ultimasDatas[c.id]) >= 3).length, [ultimasDatas]);
   const co = sel ? CLIENTES.find(c => c.id === sel) : null;
-
   return (
     <div style={{ fontFamily: "'Sora',sans-serif", background: P.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative", zIndex: 1 }}>
       <style>{CSS}</style>
-
       {/* HEADER */}
       <div className="glass" style={{ borderRadius: 0, borderLeft: "none", borderRight: "none", borderTop: "none", padding: "14px 20px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 4px 18px rgba(60,100,150,.07)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -905,7 +923,6 @@ export default function PainelConsultor() {
             </div>
           </div>
         </div>
-
         <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(120,160,200,.10)", borderRadius: 12, padding: "6px 10px", border: `1px solid ${P.border}` }}>
           <button onClick={() => setMesIdx(i => Math.max(0, i - 1))} disabled={mesIdx === 0}
             style={{ background: "none", border: "none", cursor: "pointer", color: P.muted, display: "flex", padding: 4, opacity: mesIdx === 0 ? .3 : 1 }}>
@@ -918,9 +935,8 @@ export default function PainelConsultor() {
           </button>
         </div>
       </div>
-
       {co ? (
-        <Detalhe c={co} mes={mes} mesAnt={mesAnt} allLancs={lancs} onBack={() => setSel(null)} onRefresh={() => carregar(true)} />
+        <Detalhe c={co} mes={mes} mesAnt={mesAnt} allLancs={lancs} allLancsAnt={lancsAnt} onBack={() => setSel(null)} onRefresh={() => carregar(true)} />
       ) : (
         <div style={{ padding: "20px 16px 60px" }}>
           <div className="glass" style={{ borderRadius: 16, padding: "22px 20px", marginBottom: 20, boxShadow: P.shadow }}>
@@ -957,7 +973,6 @@ export default function PainelConsultor() {
               </>
             )}
           </div>
-
           <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 12, fontWeight: 600, opacity: .6 }}>
             Clientes — toque para detalhar
           </div>
@@ -966,7 +981,6 @@ export default function PainelConsultor() {
               <Card key={c.id} c={c} lancs={porCliente[c.id] || []} ultimaData={ultimasDatas[c.id]} onClick={() => setSel(c.id)} />
             ))}
           </div>
-
           <div style={{ fontSize: 9, color: P.border, textAlign: "center", padding: "28px 0 8px", letterSpacing: ".25em", textTransform: "uppercase", fontWeight: 600 }}>
             Painel Confidencial · {MESES_LABEL[mes]}
           </div>
