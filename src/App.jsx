@@ -70,26 +70,26 @@ async function migrarCategoria(clienteId, categoriaAntiga, categoriaNova) {
   } catch { return false; }
 }
 const P = {
-  blue: "#A9C9E8", blueL: "rgba(169,201,232,0.13)", bluePale: "#DCE9F5",
-  orange: "#EBC49E", orangeL: "rgba(235,196,158,0.14)", orangePale: "#F5E5D2",
-  green: "#A9DCC0", greenL: "rgba(169,220,192,0.13)", greenPale: "#DCF0E5",
-  purple: "#C6BCE8", red: "#E8AFAF", redL: "rgba(232,175,175,0.16)",
-  redStrong: "#B84F4F",
-  text: "#E4E8EF", muted: "#8792A8", mutedStrong: "#5B6478",
-  ink: "#151822",
-  border: "rgba(255,255,255,0.08)",
-  bg: "#12151E", glass: "rgba(255,255,255,0.045)",
-  shadow: "0 8px 30px rgba(0,0,0,0.35)",
+  blue: "#2F65AC", blueL: "rgba(47,101,172,0.09)", bluePale: "#DCE9F5",
+  orange: "#A6521E", orangeL: "rgba(166,82,30,0.09)", orangePale: "#F5E5D2",
+  green: "#1F8158", greenL: "rgba(31,129,88,0.09)", greenPale: "#DCF0E5",
+  purple: "#6350B8", red: "#B93E3E", redL: "rgba(185,62,62,0.10)",
+  redStrong: "#B93E3E",
+  text: "#1E2430", muted: "#5E6C82", mutedStrong: "#5E6C82",
+  ink: "#FFFFFF",
+  border: "rgba(30,60,90,0.14)",
+  bg: "#F5F7FA", glass: "rgba(255,255,255,0.86)",
+  shadow: "0 4px 24px rgba(60,100,150,0.09)",
 };
 const CAT_COR = {
   "Funcionário": P.orange, "Funcionario": P.orange, "Infraestrutura": P.blue, "Administrativo": P.green,
-  "Insumos": P.purple, "Investimento": "#EBD29E", "Outros": P.muted,
+  "Insumos": P.purple, "Investimento": "#8A6A1F", "Outros": P.muted,
   "Compromissos Financeiros": P.orange, "Moradia": P.blue, "Transporte": P.green,
-  "Alimentação": P.purple, "Alimentacao": P.purple, "Reserva": "#B8DCC6", "Salários": P.blue,
+  "Alimentação": P.purple, "Alimentacao": P.purple, "Reserva": "#2F7A56", "Salários": P.blue,
   "Mensalidades": P.green, "Material Didático": P.purple,
-  "Marketing": "#EFC2D8", "Lazer": "#A9DCC0", "Serviços": "#9FD4CE",
+  "Marketing": "#B8447D", "Lazer": "#237A5C", "Serviços": "#1D7A6D",
   "Liquidação de Fatura": P.blue, "Liquidacao de Fatura": P.blue,
-  "Impostos": "#C6BCE8", "Obra": "#E8AFAF", "Papelaria": "#9FD4CE",
+  "Impostos": "#5A4A9E", "Obra": "#A13D3D", "Papelaria": "#1D7A6D",
 };
 const CATS_EMP_PICO  = ["Administrativo","Funcionario","Infraestrutura","Insumos","Investimento","Liquidacao de Fatura","Marketing","Outros"];
 const CATS_PES_PICO  = ["Alimentacao","Compromissos Financeiros","Lazer","Liquidacao de Fatura","Moradia","Reserva","Transporte","Outros"];
@@ -110,8 +110,8 @@ function gerarMeses() {
 }
 const { arr: MESES_DISP, labels: MESES_LABEL, idxAtual: IDX_ATUAL } = gerarMeses();
 const CLIENTES = [
-  { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: "#EBC49E", corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
-  { id: "criar", nome: "CRIAR Centro Educacional",  seg: "Educação",  hasPessoal: false, cor: P.blue,   corL: P.blueL,   corT: "#A9C9E8", corPale: P.bluePale,   catsEmp: CATS_EMP_CRIAR, catsPes: [] },
+  { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: P.orange, corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
+  { id: "criar", nome: "CRIAR Centro Educacional",  seg: "Educação",  hasPessoal: false, cor: P.blue,   corL: P.blueL,   corT: P.blue, corPale: P.bluePale,   catsEmp: CATS_EMP_CRIAR, catsPes: [] },
 ];
 const fmt  = v  => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const pct  = (a, b) => b > 0 ? ((a / b) * 100).toFixed(1) : "0.0";
@@ -143,7 +143,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .pulse { animation: pulse 2s ease-in-out infinite; }
 @keyframes alertPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 .alert-pulse { animation: alertPulse 1.5s ease-in-out infinite; }
-.inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.94); color: ${P.ink}; outline: none; transition: border .18s; -webkit-appearance: none; appearance: none; }
+.inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.94); color: ${P.text}; outline: none; transition: border .18s; -webkit-appearance: none; appearance: none; }
 .inp::placeholder { color: #8A93A6; }
 .inp:focus { border-color: ${P.blue}; box-shadow: 0 0 0 3px rgba(79,134,198,.10); }
 .seg { cursor: pointer; border-radius: 20px; border: 1.5px solid ${P.border}; padding: 7px 13px; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 10px; letter-spacing: .05em; text-align: center; transition: all .18s; background: rgba(255,255,255,.9); color: ${P.mutedStrong}; }
@@ -156,7 +156,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .btn-main { color: ${P.ink}; } .btn-main:hover { opacity: .9; } .btn-main:disabled { opacity: .5; cursor: not-allowed; }
 .btn-ghost { background: none; border: 1.5px solid ${P.border}; color: ${P.muted}; margin-top: 10px; }
 .btn-ghost:hover { border-color: ${P.blue}; color: ${P.blue}; }
-.search-inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 10px 14px 10px 36px; font-size: 13px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.94); color: ${P.ink}; outline: none; transition: border .18s; }
+.search-inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 10px 14px 10px 36px; font-size: 13px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.94); color: ${P.text}; outline: none; transition: border .18s; }
 .search-inp::placeholder { color: #8A93A6; }
 .search-inp:focus { border-color: ${P.blue}; }
 ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-thumb { background: rgba(79,134,198,.22); border-radius: 2px; }
@@ -769,12 +769,21 @@ function Historico({ c, lancs, onRefresh }) {
 }
 // ─── DETALHE ─────────────────────────────────────────────────────────────────────
 // ─── CATEGORIAS ADMIN — criar/excluir categorias com migração segura ──────────
+// Paleta de cores válida (contraste testado) pra sorteio automático — nunca repete
+// entre as categorias já existentes do mesmo cliente antes de reciclar.
+const POOL_CORES = ["#2F65AC", "#A6521E", "#1F8158", "#6350B8", "#B93E3E", "#B8447D", "#1D7A6D", "#8A6A1F", "#1D6E7A", "#4A4FB0", "#8A2F4F", "#7A5230", "#4E5A70", "#106B72", "#5E6C82"];
+function sortearCor(coresUsadas) {
+  const usadas = new Set(coresUsadas);
+  const disponiveis = POOL_CORES.filter(cor => !usadas.has(cor));
+  const lista = disponiveis.length > 0 ? disponiveis : POOL_CORES; // se esgotar, recicla
+  return lista[Math.floor(Math.random() * lista.length)];
+}
+
 function CategoriasAdmin({ c }) {
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [novoNome, setNovoNome] = useState("");
   const [novoCentro, setNovoCentro] = useState("empresa");
-  const [novoCor, setNovoCor] = useState("#A9C9E8");
   const [criando, setCriando] = useState(false);
   const [delAlvo, setDelAlvo] = useState(null);      // categoria que o usuário quer excluir
   const [qtdUso, setQtdUso] = useState(0);
@@ -782,15 +791,14 @@ function CategoriasAdmin({ c }) {
   const [checandoUso, setChecandoUso] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
 
-  const CORES_OPT = ["#A9C9E8", "#EBC49E", "#A9DCC0", "#C6BCE8", "#E8AFAF", "#EFC2D8", "#9FD4CE", "#EBD29E", "#8792A8"];
-
   const load = () => { setLoading(true); fetchCategorias(c.id).then(r => { setCats(r || []); setLoading(false); }); };
   useEffect(load, [c.id]);
 
   async function adicionar() {
     if (!novoNome.trim()) return;
     setCriando(true);
-    const res = await criarCategoria({ cliente_id: c.id, nome: novoNome.trim(), cor: novoCor, centro: c.hasPessoal ? novoCentro : "empresa" });
+    const cor = sortearCor(cats.map(x => x.cor));
+    const res = await criarCategoria({ cliente_id: c.id, nome: novoNome.trim(), cor, centro: c.hasPessoal ? novoCentro : "empresa" });
     setCriando(false);
     if (res) { setNovoNome(""); load(); }
   }
@@ -841,13 +849,7 @@ function CategoriasAdmin({ c }) {
             ))}
           </div>
         )}
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-          {CORES_OPT.map(cor => (
-            <div key={cor} onClick={() => setNovoCor(cor)}
-              style={{ width: 24, height: 24, borderRadius: "50%", background: cor, cursor: "pointer", border: novoCor === cor ? `2.5px solid ${P.text}` : "2.5px solid transparent", boxShadow: novoCor === cor ? `0 0 0 2px ${P.bg}` : "none" }} />
-          ))}
-        </div>
-        <button className="btn btn-main" style={{ background: c.cor, color: "#1A1D24" }} onClick={adicionar} disabled={criando || !novoNome.trim()}>
+        <button className="btn btn-main" style={{ background: c.cor, color: P.ink, marginTop: 2 }} onClick={adicionar} disabled={criando || !novoNome.trim()}>
           {criando ? <><span className="spin" /> Adicionando</> : "+ Adicionar Categoria"}
         </button>
       </div>
