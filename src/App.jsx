@@ -941,9 +941,23 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
   const [tab, setTab]   = useState("dashboard");
   const [form, setForm] = useState(false);
   const total = lancsCont.reduce((s, l) => s + l.valor, 0);
+  // Busca as categorias reais (tabela `categorias`) pra este cliente — assim
+  // qualquer categoria criada/excluída na aba Categorias aparece imediatamente
+  // ao lançar ou editar despesa, sem precisar da lista fixa no código.
+  const [catsDb, setCatsDb] = useState(null);
+  useEffect(() => {
+    let ativo = true;
+    fetchCategorias(c.id).then(r => { if (ativo && r && r.length > 0) setCatsDb(r); });
+    return () => { ativo = false; };
+  }, [c.id, tab]);
+  const cLive = catsDb ? {
+    ...c,
+    catsEmp: catsDb.filter(x => x.centro !== "pessoal").map(x => x.nome),
+    catsPes: catsDb.filter(x => x.centro === "pessoal").map(x => x.nome),
+  } : c;
   return (
     <div>
-      {form && <FormLancamento c={c} mes={mes} onSaved={() => { onRefresh(); setForm(false); }} onClose={() => setForm(false)} />}
+      {form && <FormLancamento c={cLive} mes={mes} onSaved={() => { onRefresh(); setForm(false); }} onClose={() => setForm(false)} />}
       <div className="glass" style={{ borderRadius: 0, borderLeft: "none", borderRight: "none", borderTop: "none", padding: "14px 20px 0", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 4px 18px rgba(60,100,150,.07)" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: P.muted, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 6, fontFamily: "'Sora',sans-serif", fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", padding: 0 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -973,7 +987,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
         {tab === "caixa" && <CaixaMentor c={c} mes={mes} despesaTotal={total} />}
         {tab === "dashboard" && <Dashboard c={c} lancs={lancsCont} lancsAnt={lancsAntCont} />}
         {tab === "relatorio" && <Relatorio c={c} lancs={lancsCont} />}
-        {tab === "historico" && <Historico c={c} lancs={lancs} onRefresh={onRefresh} />}
+        {tab === "historico" && <Historico c={cLive} lancs={lancs} onRefresh={onRefresh} />}
         {tab === "categorias" && <CategoriasAdmin c={c} />}
       </div>
       <button onClick={() => setForm(true)}
