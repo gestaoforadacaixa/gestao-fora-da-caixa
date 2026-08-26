@@ -43,8 +43,10 @@ async function fetchCategorias(clienteId) {
 async function criarCategoria(b) {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/categorias`, { method: "POST", headers: SBH_W, body: JSON.stringify(b) });
-    return r.ok ? r.json() : null;
-  } catch { return null; }
+    if (r.ok) return { ok: true, data: await r.json() };
+    const texto = await r.text();
+    return { ok: false, erro: `${r.status}: ${texto}` };
+  } catch (e) { return { ok: false, erro: String(e) }; }
 }
 async function excluirCategoria(id) {
   try {
@@ -785,6 +787,7 @@ function CategoriasAdmin({ c }) {
   const [novoNome, setNovoNome] = useState("");
   const [novoCentro, setNovoCentro] = useState("empresa");
   const [criando, setCriando] = useState(false);
+  const [erroAdd, setErroAdd] = useState(null);
   const [delAlvo, setDelAlvo] = useState(null);      // categoria que o usuário quer excluir
   const [qtdUso, setQtdUso] = useState(0);
   const [migrarPara, setMigrarPara] = useState("");
@@ -797,10 +800,12 @@ function CategoriasAdmin({ c }) {
   async function adicionar() {
     if (!novoNome.trim()) return;
     setCriando(true);
+    setErroAdd(null);
     const cor = sortearCor(cats.map(x => x.cor));
     const res = await criarCategoria({ cliente_id: c.id, nome: novoNome.trim(), cor, centro: c.hasPessoal ? novoCentro : "empresa" });
     setCriando(false);
-    if (res) { setNovoNome(""); load(); }
+    if (res.ok) { setNovoNome(""); load(); }
+    else { setErroAdd(res.erro || "Erro desconhecido ao salvar."); console.error("Erro ao criar categoria:", res.erro); }
   }
 
   async function iniciarExclusao(cat) {
@@ -849,6 +854,7 @@ function CategoriasAdmin({ c }) {
             ))}
           </div>
         )}
+        {erroAdd && <div style={{ background: P.redL, border: `1px solid ${P.red}44`, borderRadius: 8, padding: "10px 12px", marginBottom: 10, fontSize: 11.5, color: P.red, fontWeight: 600, wordBreak: "break-word" }}>{erroAdd}</div>}
         <button className="btn btn-main" style={{ background: c.cor, color: P.ink, marginTop: 2 }} onClick={adicionar} disabled={criando || !novoNome.trim()}>
           {criando ? <><span className="spin" /> Adicionando</> : "+ Adicionar Categoria"}
         </button>
