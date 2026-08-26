@@ -945,7 +945,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
           <Logo id={c.id} size={40} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 700 }}>{c.nome}</div>
-            <div style={{ fontSize: 11, color: P.muted }}>{MESES_LABEL[mes]} · {lancs.length} lançamentos</div>
+            <div style={{ fontSize: 11, color: P.muted }}>{MESES_LABEL[mes]} · {lancsCont.length} lançamentos</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 9, color: P.muted, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 1 }}>Total</div>
@@ -977,8 +977,10 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
 }
 // ─── CARD ─────────────────────────────────────────────────────────────────────────
 function Card({ c, lancs, ultimaData, onClick }) {
-  const totE = lancs.filter(l => l.centro === "empresa").reduce((s, l) => s + l.valor, 0);
-  const totP = lancs.filter(l => l.centro === "pessoal").reduce((s, l) => s + l.valor, 0);
+  const isLiquidacao = l => l.categoria === "Liquidação de Fatura" || l.categoria === "Liquidacao de Fatura";
+  const lancsCont = lancs.filter(l => !isLiquidacao(l));
+  const totE = lancsCont.filter(l => l.centro === "empresa").reduce((s, l) => s + l.valor, 0);
+  const totP = lancsCont.filter(l => l.centro === "pessoal").reduce((s, l) => s + l.valor, 0);
   const total = totE + totP;
   const dias = diasSemLancar(ultimaData);
   const alerta = dias >= 3;
@@ -1002,7 +1004,7 @@ function Card({ c, lancs, ultimaData, onClick }) {
           <div style={{ fontSize: 14, fontWeight: 700 }}>{c.nome}</div>
           <div style={{ fontSize: 11, color: P.muted, marginTop: 2 }}>
             {c.seg}
-            {total > 0 ? ` · ${lancs.length} lançamentos` : ""}
+            {total > 0 ? ` · ${lancsCont.length} lançamentos` : ""}
           </div>
           {ultimaData && (
             <div style={{ fontSize: 10, color: alerta ? P.red : P.muted, marginTop: 2, fontWeight: alerta ? 700 : 400 }}>
@@ -1092,7 +1094,8 @@ export default function PainelConsultor() {
   useEffect(() => {
     if (novos > 0) { const t = setTimeout(() => setNovos(0), 4000); return () => clearTimeout(t); }
   }, [novos]);
-  const totalGeral = useMemo(() => lancs.reduce((s, l) => s + l.valor, 0), [lancs]);
+  const isLiquidacaoTop = l => l.categoria === "Liquidação de Fatura" || l.categoria === "Liquidacao de Fatura";
+  const totalGeral = useMemo(() => lancs.filter(l => !isLiquidacaoTop(l)).reduce((s, l) => s + l.valor, 0), [lancs]);
   const porCliente = useMemo(() => {
     const m = {};
     CLIENTES.forEach(c => { m[c.id] = lancs.filter(l => l.cliente_id === c.id); });
@@ -1155,7 +1158,7 @@ export default function PainelConsultor() {
                   {lancs.length} lançamentos · {CLIENTES.length} clientes
                 </div>
                 {CLIENTES.map(c => {
-                  const tot = (porCliente[c.id] || []).reduce((s, l) => s + l.valor, 0);
+                  const tot = (porCliente[c.id] || []).filter(l => !isLiquidacaoTop(l)).reduce((s, l) => s + l.valor, 0);
                   if (!tot) return null;
                   return (
                     <div key={c.id} style={{ marginBottom: 9 }}>
