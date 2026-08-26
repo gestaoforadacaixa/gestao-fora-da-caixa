@@ -33,27 +33,67 @@ async function sbPatch(id, b) {
     return r.ok;
   } catch { return false; }
 }
+// ─── Categorias administráveis ─────────────────────────────────────────────────
+async function fetchCategorias(clienteId) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/categorias?cliente_id=eq.${clienteId}&order=nome.asc`, { headers: SBH });
+    return r.ok ? r.json() : [];
+  } catch { return []; }
+}
+async function criarCategoria(b) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/categorias`, { method: "POST", headers: SBH_W, body: JSON.stringify(b) });
+    return r.ok ? r.json() : null;
+  } catch { return null; }
+}
+async function excluirCategoria(id) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/categorias?id=eq.${id}`, { method: "DELETE", headers: SBH });
+    return r.ok;
+  } catch { return false; }
+}
+// Conta quantos lançamentos (todos os meses) usam essa categoria
+async function contarLancsPorCategoria(clienteId, categoria) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?cliente_id=eq.${clienteId}&categoria=eq.${encodeURIComponent(categoria)}&select=id`, { headers: SBH });
+    const arr = r.ok ? await r.json() : [];
+    return arr.length;
+  } catch { return 0; }
+}
+// Migra em massa: troca a categoria de TODOS os lançamentos de uma vez (1 request)
+async function migrarCategoria(clienteId, categoriaAntiga, categoriaNova) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?cliente_id=eq.${clienteId}&categoria=eq.${encodeURIComponent(categoriaAntiga)}`, {
+      method: "PATCH", headers: { ...SBH_W, "Prefer": "return=minimal" }, body: JSON.stringify({ categoria: categoriaNova }),
+    });
+    return r.ok;
+  } catch { return false; }
+}
 const P = {
-  blue: "#4F86C6", blueL: "rgba(79,134,198,0.10)", bluePale: "#EAF1FA",
-  orange: "#E8854E", orangeL: "rgba(232,133,78,0.10)", orangePale: "#FEF0E6",
-  green: "#4DAF85", greenL: "rgba(77,175,133,0.10)", greenPale: "#E6F5EF",
-  purple: "#8B78D0", red: "#D95F5F", redL: "rgba(217,95,95,0.10)",
-  text: "#1E2D3D", muted: "#7A9BB5",
-  border: "rgba(120,160,200,0.16)",
-  bg: "#F2F6FA", glass: "rgba(255,255,255,0.82)",
-  shadow: "0 4px 24px rgba(60,100,150,0.09)",
+  blue: "#A9C9E8", blueL: "rgba(169,201,232,0.13)", bluePale: "#DCE9F5",
+  orange: "#EBC49E", orangeL: "rgba(235,196,158,0.14)", orangePale: "#F5E5D2",
+  green: "#A9DCC0", greenL: "rgba(169,220,192,0.13)", greenPale: "#DCF0E5",
+  purple: "#C6BCE8", red: "#E8AFAF", redL: "rgba(232,175,175,0.16)",
+  redStrong: "#B84F4F",
+  text: "#E4E8EF", muted: "#8792A8", mutedStrong: "#5B6478",
+  ink: "#151822",
+  border: "rgba(255,255,255,0.08)",
+  bg: "#12151E", glass: "rgba(255,255,255,0.045)",
+  shadow: "0 8px 30px rgba(0,0,0,0.35)",
 };
 const CAT_COR = {
-  "Funcionário": P.orange, "Infraestrutura": P.blue, "Administrativo": P.green,
-  "Insumos": P.purple, "Investimento": "#F0A050", "Outros": P.muted,
+  "Funcionário": P.orange, "Funcionario": P.orange, "Infraestrutura": P.blue, "Administrativo": P.green,
+  "Insumos": P.purple, "Investimento": "#EBD29E", "Outros": P.muted,
   "Compromissos Financeiros": P.orange, "Moradia": P.blue, "Transporte": P.green,
-  "Alimentação": P.purple, "Reserva": "#8BC4A0", "Salários": P.blue,
+  "Alimentação": P.purple, "Alimentacao": P.purple, "Reserva": "#B8DCC6", "Salários": P.blue,
   "Mensalidades": P.green, "Material Didático": P.purple,
-  "Marketing": "#E882B4", "Lazer": "#7BC8A4", "Serviços": "#16A085",
+  "Marketing": "#EFC2D8", "Lazer": "#A9DCC0", "Serviços": "#9FD4CE",
+  "Liquidação de Fatura": P.blue, "Liquidacao de Fatura": P.blue,
+  "Impostos": "#C6BCE8", "Obra": "#E8AFAF", "Papelaria": "#9FD4CE",
 };
-const CATS_EMP_PICO  = ["Administrativo","Funcionário","Infraestrutura","Insumos","Investimento","Marketing","Outros"];
-const CATS_PES_PICO  = ["Alimentação","Compromissos Financeiros","Lazer","Moradia","Reserva","Transporte","Outros"];
-const CATS_EMP_CRIAR = ["Administrativo","Alimentação","Infraestrutura","Material Didático","Mensalidades","Salários","Serviços","Transporte"];
+const CATS_EMP_PICO  = ["Administrativo","Funcionario","Infraestrutura","Insumos","Investimento","Liquidacao de Fatura","Marketing","Outros"];
+const CATS_PES_PICO  = ["Alimentacao","Compromissos Financeiros","Lazer","Liquidacao de Fatura","Moradia","Reserva","Transporte","Outros"];
+const CATS_EMP_CRIAR = ["Administrativo","Alimentação","Compromissos Financeiros","Impostos","Infraestrutura","Liquidação de Fatura","Material Didático","Mensalidades","Obra","Outros","Papelaria","Salários","Serviços","Transporte"];
 const MEIOS          = ["Crédito","Débito","Dinheiro","Pix","Transferência"];
 const NOMES_MES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 function gerarMeses() {
@@ -70,8 +110,8 @@ function gerarMeses() {
 }
 const { arr: MESES_DISP, labels: MESES_LABEL, idxAtual: IDX_ATUAL } = gerarMeses();
 const CLIENTES = [
-  { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: "#B85C20", corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
-  { id: "criar", nome: "CRIAR Centro Educacional",  seg: "Educação",  hasPessoal: false, cor: P.blue,   corL: P.blueL,   corT: "#2558A0", corPale: P.bluePale,   catsEmp: CATS_EMP_CRIAR, catsPes: [] },
+  { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: "#EBC49E", corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
+  { id: "criar", nome: "CRIAR Centro Educacional",  seg: "Educação",  hasPessoal: false, cor: P.blue,   corL: P.blueL,   corT: "#A9C9E8", corPale: P.bluePale,   catsEmp: CATS_EMP_CRIAR, catsPes: [] },
 ];
 const fmt  = v  => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const pct  = (a, b) => b > 0 ? ((a / b) * 100).toFixed(1) : "0.0";
@@ -90,8 +130,8 @@ const CSS = `
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: ${P.bg}; font-family: 'Sora', sans-serif; color: ${P.text}; }
 body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background: radial-gradient(ellipse 60% 40% at 90% 2%, rgba(79,134,198,.13) 0%, transparent 60%),
-    radial-gradient(ellipse 45% 35% at 2% 95%, rgba(77,175,133,.10) 0%, transparent 60%); }
+  background: radial-gradient(ellipse 60% 40% at 90% 2%, rgba(110,168,220,.10) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 35% at 2% 95%, rgba(92,190,147,.08) 0%, transparent 60%); }
 .lift { transition: all .22s cubic-bezier(.4,0,.2,1); cursor: pointer; }
 .lift:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(60,100,150,.13) !important; }
 .glass { background: ${P.glass}; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid ${P.border}; }
@@ -103,19 +143,21 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .pulse { animation: pulse 2s ease-in-out infinite; }
 @keyframes alertPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 .alert-pulse { animation: alertPulse 1.5s ease-in-out infinite; }
-.inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.9); color: ${P.text}; outline: none; transition: border .18s; -webkit-appearance: none; appearance: none; }
+.inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 11px 13px; font-size: 14px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.94); color: ${P.ink}; outline: none; transition: border .18s; -webkit-appearance: none; appearance: none; }
+.inp::placeholder { color: #8A93A6; }
 .inp:focus { border-color: ${P.blue}; box-shadow: 0 0 0 3px rgba(79,134,198,.10); }
-.seg { cursor: pointer; border-radius: 20px; border: 1.5px solid ${P.border}; padding: 7px 13px; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 10px; letter-spacing: .05em; text-align: center; transition: all .18s; background: rgba(255,255,255,.82); color: ${P.muted}; }
-.seg.on { color: #fff; box-shadow: 0 2px 10px rgba(60,100,150,.2); }
-.overlay { position: fixed; inset: 0; background: rgba(30,45,61,.5); z-index: 200; display: flex; align-items: flex-end; backdrop-filter: blur(3px); }
+.seg { cursor: pointer; border-radius: 20px; border: 1.5px solid ${P.border}; padding: 7px 13px; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 10px; letter-spacing: .05em; text-align: center; transition: all .18s; background: rgba(255,255,255,.9); color: ${P.mutedStrong}; }
+.seg.on { color: ${P.ink}; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; display: flex; align-items: flex-end; backdrop-filter: blur(3px); }
 .sheet { background: #fff; border-radius: 20px 20px 0 0; padding: 8px 20px 48px; width: 100%; max-width: 480px; margin: 0 auto; max-height: 92vh; overflow-y: auto; animation: up .26s cubic-bezier(.32,.72,0,1); }
 @keyframes up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .handle { width: 36px; height: 4px; background: #E8EDF5; border-radius: 2px; margin: 12px auto 20px; }
 .btn { width: 100%; border: none; border-radius: 12px; padding: 14px; font-size: 14px; font-family: 'Sora', sans-serif; font-weight: 700; cursor: pointer; transition: all .2s; }
-.btn-main { color: #fff; } .btn-main:hover { opacity: .9; } .btn-main:disabled { opacity: .5; cursor: not-allowed; }
+.btn-main { color: ${P.ink}; } .btn-main:hover { opacity: .9; } .btn-main:disabled { opacity: .5; cursor: not-allowed; }
 .btn-ghost { background: none; border: 1.5px solid ${P.border}; color: ${P.muted}; margin-top: 10px; }
 .btn-ghost:hover { border-color: ${P.blue}; color: ${P.blue}; }
-.search-inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 10px 14px 10px 36px; font-size: 13px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.9); color: ${P.text}; outline: none; transition: border .18s; }
+.search-inp { width: 100%; border: 1.5px solid ${P.border}; border-radius: 10px; padding: 10px 14px 10px 36px; font-size: 13px; font-family: 'Sora', sans-serif; background: rgba(255,255,255,.94); color: ${P.ink}; outline: none; transition: border .18s; }
+.search-inp::placeholder { color: #8A93A6; }
 .search-inp:focus { border-color: ${P.blue}; }
 ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-thumb { background: rgba(79,134,198,.22); border-radius: 2px; }
 `;
@@ -381,7 +423,7 @@ function EditarLancamento({ c, item, onDone, onClose }) {
               onChange={e => { setMotivo(e.target.value); setMErr(false); }} />
             {mErr && <div style={{ fontSize: 11, color: P.red, marginTop: 4, fontWeight: 600 }}>Informe o motivo</div>}
             <div style={{ height: 16 }} />
-            <button className="btn" style={{ background: P.red, color: "#fff" }} onClick={excluir} disabled={busy}>
+            <button className="btn" style={{ background: P.redStrong, color: "#fff" }} onClick={excluir} disabled={busy}>
               {busy ? <><span className="spin" /> Excluindo…</> : "Confirmar Exclusão"}
             </button>
             <button className="btn btn-ghost" onClick={() => setDelMode(false)}>Voltar</button>
@@ -481,7 +523,7 @@ function Dashboard({ c, lancs, lancsAnt }) {
           { l: "Total Geral", v: fmt(total), sub: `${lancs.length} lançamentos`, cor: c.cor },
           { l: "vs Mês Anterior", v: diff != null ? `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%` : "—", sub: diff != null ? (diff < 0 ? "↓ reduziu" : "↑ aumentou") : "sem comparativo", cor: diff != null ? (diff < 0 ? P.green : P.red) : P.muted },
           { l: "Empresa", v: fmt(totE), sub: `${pct(totE, total)}% do total`, cor: c.cor },
-          ...(totP > 0 ? [{ l: "Pessoal", v: fmt(totP), sub: `${pct(totP, total)}% do total`, cor: P.muted }] : []),
+          ...(c.hasPessoal ? [{ l: "Pessoal", v: fmt(totP), sub: `${pct(totP, total)}% do total`, cor: P.muted }] : []),
         ].map((k, i) => (
           <div key={i} className="glass" style={{ borderRadius: 14, padding: "14px" }}>
             <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{k.l}</div>
@@ -513,7 +555,7 @@ function Dashboard({ c, lancs, lancsAnt }) {
           </div>
         </div>
       </div>
-      {totP > 0 && (
+      {c.hasPessoal && (
         <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 14 }}>
           <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Empresa × Pessoal</div>
           <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", gap: 2, marginBottom: 10 }}>
@@ -603,13 +645,13 @@ function Relatorio({ c, lancs }) {
       <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 18, borderLeft: `4px solid ${c.cor}` }}>
         <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>Resumo Executivo</div>
         <div style={{ fontSize: 24, fontWeight: 400, color: c.corT, fontFamily: "'DM Serif Display',serif", marginBottom: 10 }}>{fmt(total)}</div>
-        <div style={{ display: "grid", gridTemplateColumns: totP > 0 ? "1fr 1fr" : "1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: c.hasPessoal ? "1fr 1fr" : "1fr", gap: 12 }}>
           <div>
             <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Empresa</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: c.corT }}>{fmt(totE)}</div>
             <div style={{ fontSize: 10, color: P.muted }}>{emp.length} lançamentos</div>
           </div>
-          {totP > 0 && <div>
+          {c.hasPessoal && <div>
             <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 3 }}>Pessoal</div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(totP)}</div>
             <div style={{ fontSize: 10, color: P.muted }}>{pes.length} lançamentos</div>
@@ -617,7 +659,7 @@ function Relatorio({ c, lancs }) {
         </div>
       </div>
       <Sec titulo="Empresa" list={emp} totBase={totE} cor={c.cor} />
-      {totP > 0 && <Sec titulo="Pessoal" list={pes} totBase={totP} cor={P.muted} />}
+      {c.hasPessoal && <Sec titulo="Pessoal" list={pes} totBase={totP} cor={P.muted} />}
     </div>
   );
 }
@@ -633,7 +675,7 @@ function Historico({ c, lancs, onRefresh }) {
     if (busca.trim()) list = list.filter(l => l.descricao.toLowerCase().includes(busca.toLowerCase()) || l.categoria.toLowerCase().includes(busca.toLowerCase()));
     return list;
   }, [lancs, filtro, busca]);
-  const total = useMemo(() => filtrados.filter(l => !l.excluido).reduce((s, l) => s + l.valor, 0), [filtrados]);
+  const total = useMemo(() => filtrados.filter(l => !l.excluido && l.categoria !== "Liquidação de Fatura" && l.categoria !== "Liquidacao de Fatura").reduce((s, l) => s + l.valor, 0), [filtrados]);
   return (
     <div className="fu">
       {editItem && <EditarLancamento c={c} item={editItem} onDone={onRefresh} onClose={() => setEditItem(null)} />}
@@ -694,6 +736,9 @@ function Historico({ c, lancs, onRefresh }) {
                   {it.recorrente && (
                     <span style={{ fontSize: 9, background: `${c.cor}18`, color: c.cor, borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>↻ REC</span>
                   )}
+                  {(it.categoria === "Liquidação de Fatura" || it.categoria === "Liquidacao de Fatura") && (
+                    <span style={{ fontSize: 9, background: `${P.blue}18`, color: P.blue, borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>LIQUIDAÇÃO</span>
+                  )}
                   {it.excluido && it.motivo_exclusao && (
                     <span style={{ fontSize: 9, background: `${P.red}18`, color: P.red, borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>Excluído: {it.motivo_exclusao}</span>
                   )}
@@ -723,12 +768,171 @@ function Historico({ c, lancs, onRefresh }) {
   );
 }
 // ─── DETALHE ─────────────────────────────────────────────────────────────────────
+// ─── CATEGORIAS ADMIN — criar/excluir categorias com migração segura ──────────
+function CategoriasAdmin({ c }) {
+  const [cats, setCats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoCentro, setNovoCentro] = useState("empresa");
+  const [novoCor, setNovoCor] = useState("#A9C9E8");
+  const [criando, setCriando] = useState(false);
+  const [delAlvo, setDelAlvo] = useState(null);      // categoria que o usuário quer excluir
+  const [qtdUso, setQtdUso] = useState(0);
+  const [migrarPara, setMigrarPara] = useState("");
+  const [checandoUso, setChecandoUso] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+
+  const CORES_OPT = ["#A9C9E8", "#EBC49E", "#A9DCC0", "#C6BCE8", "#E8AFAF", "#EFC2D8", "#9FD4CE", "#EBD29E", "#8792A8"];
+
+  const load = () => { setLoading(true); fetchCategorias(c.id).then(r => { setCats(r || []); setLoading(false); }); };
+  useEffect(load, [c.id]);
+
+  async function adicionar() {
+    if (!novoNome.trim()) return;
+    setCriando(true);
+    const res = await criarCategoria({ cliente_id: c.id, nome: novoNome.trim(), cor: novoCor, centro: c.hasPessoal ? novoCentro : "empresa" });
+    setCriando(false);
+    if (res) { setNovoNome(""); load(); }
+  }
+
+  async function iniciarExclusao(cat) {
+    setDelAlvo(cat);
+    setChecandoUso(true);
+    setMigrarPara("");
+    const qtd = await contarLancsPorCategoria(c.id, cat.nome);
+    setQtdUso(qtd);
+    setChecandoUso(false);
+  }
+
+  async function confirmarExclusao() {
+    setExcluindo(true);
+    if (qtdUso > 0) {
+      if (!migrarPara) { setExcluindo(false); return; }
+      const okMigrar = await migrarCategoria(c.id, delAlvo.nome, migrarPara);
+      if (!okMigrar) { setExcluindo(false); return; }
+    }
+    await excluirCategoria(delAlvo.id);
+    setExcluindo(false);
+    setDelAlvo(null);
+    load();
+  }
+
+  const empresa = cats.filter(x => x.centro !== "pessoal");
+  const pessoal = cats.filter(x => x.centro === "pessoal");
+  const outrasParaMigrar = delAlvo ? cats.filter(x => x.id !== delAlvo.id && x.centro === delAlvo.centro) : [];
+
+  if (loading) return <div className="fu" style={{ textAlign: "center", padding: "40px 0" }}><span className="spin" /></div>;
+
+  return (
+    <div className="fu">
+      <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Categorias</div>
+      <div style={{ fontSize: 12, color: P.muted, marginBottom: 18 }}>Gerencie as categorias deste cliente. Excluir com lançamentos existentes exige migrar pra outra categoria.</div>
+
+      {/* Nova categoria */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 18, boxShadow: P.shadow }}>
+        <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Nova Categoria</div>
+        <input className="inp" style={{ marginBottom: 10 }} placeholder="Nome da categoria" value={novoNome} onChange={e => setNovoNome(e.target.value)} />
+        {c.hasPessoal && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {["empresa", "pessoal"].map(v => (
+              <div key={v} className={`seg${novoCentro === v ? " on" : ""}`} style={{ flex: 1, ...(novoCentro === v ? { background: c.cor, borderColor: c.cor } : {}) }} onClick={() => setNovoCentro(v)}>
+                {v === "empresa" ? "Empresa" : "Pessoal"}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+          {CORES_OPT.map(cor => (
+            <div key={cor} onClick={() => setNovoCor(cor)}
+              style={{ width: 24, height: 24, borderRadius: "50%", background: cor, cursor: "pointer", border: novoCor === cor ? `2.5px solid ${P.text}` : "2.5px solid transparent", boxShadow: novoCor === cor ? `0 0 0 2px ${P.bg}` : "none" }} />
+          ))}
+        </div>
+        <button className="btn btn-main" style={{ background: c.cor, color: "#1A1D24" }} onClick={adicionar} disabled={criando || !novoNome.trim()}>
+          {criando ? <><span className="spin" /> Adicionando</> : "+ Adicionar Categoria"}
+        </button>
+      </div>
+
+      {/* Lista Empresa */}
+      <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Empresa</div>
+      <div className="glass" style={{ borderRadius: 14, overflow: "hidden", marginBottom: c.hasPessoal ? 20 : 0 }}>
+        {empresa.length === 0 ? (
+          <div style={{ padding: "18px 16px", fontSize: 12, color: P.muted, textAlign: "center" }}>Nenhuma categoria cadastrada.</div>
+        ) : empresa.map((cat, i) => (
+          <div key={cat.id} style={{ padding: "12px 16px", borderBottom: i < empresa.length - 1 ? `1px solid ${P.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: cat.cor, flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{cat.nome}</div>
+            <button onClick={() => iniciarExclusao(cat)} style={{ background: "none", border: "none", color: P.muted, cursor: "pointer", padding: 4 }} title="Excluir">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /></svg>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Lista Pessoal (só se o cliente tiver) */}
+      {c.hasPessoal && (
+        <>
+          <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Pessoal</div>
+          <div className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
+            {pessoal.length === 0 ? (
+              <div style={{ padding: "18px 16px", fontSize: 12, color: P.muted, textAlign: "center" }}>Nenhuma categoria cadastrada.</div>
+            ) : pessoal.map((cat, i) => (
+              <div key={cat.id} style={{ padding: "12px 16px", borderBottom: i < pessoal.length - 1 ? `1px solid ${P.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: cat.cor, flexShrink: 0 }} />
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{cat.nome}</div>
+                <button onClick={() => iniciarExclusao(cat)} style={{ background: "none", border: "none", color: P.muted, cursor: "pointer", padding: 4 }} title="Excluir">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Modal de exclusão / migração */}
+      {delAlvo && (
+        <div className="overlay" onClick={e => { if (e.target === e.currentTarget) setDelAlvo(null); }}>
+          <div className="sheet">
+            <div className="handle" />
+            <div style={{ fontSize: 18, fontWeight: 700, color: P.red, marginBottom: 6 }}>Excluir "{delAlvo.nome}"</div>
+            {checandoUso ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 0" }}><span className="spin" /><span style={{ fontSize: 13, color: "#6B7280" }}>Verificando uso…</span></div>
+            ) : qtdUso === 0 ? (
+              <>
+                <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 18 }}>Essa categoria não tem nenhum lançamento. Pode excluir direto, sem risco.</div>
+                <button className="btn" style={{ background: P.redStrong, color: "#fff" }} onClick={confirmarExclusao} disabled={excluindo}>{excluindo ? <><span className="spin" /> Excluindo</> : "Confirmar Exclusão"}</button>
+              </>
+            ) : (
+              <>
+                <div style={{ background: "rgba(232,175,175,.14)", border: "1px solid rgba(232,175,175,.4)", borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 12.5, color: "#8A4A4A", fontWeight: 600 }}>
+                  {qtdUso} lançamento{qtdUso > 1 ? "s" : ""} usa{qtdUso > 1 ? "m" : ""} essa categoria. Escolha pra qual categoria eles devem migrar antes de excluir — assim nenhum lançamento some.
+                </div>
+                <label style={{ fontSize: 9.5, color: "#6B7280", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600, display: "block", marginBottom: 6 }}>Migrar lançamentos para</label>
+                <select className="inp" style={{ marginBottom: 16 }} value={migrarPara} onChange={e => setMigrarPara(e.target.value)}>
+                  <option value="">Selecione...</option>
+                  {outrasParaMigrar.map(o => <option key={o.id} value={o.nome}>{o.nome}</option>)}
+                </select>
+                <button className="btn" style={{ background: P.redStrong, color: "#fff" }} onClick={confirmarExclusao} disabled={excluindo || !migrarPara}>
+                  {excluindo ? <><span className="spin" /> Migrando e excluindo</> : "Migrar e Excluir"}
+                </button>
+              </>
+            )}
+            <button className="btn btn-ghost" onClick={() => setDelAlvo(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
-  const lancs    = allLancs.filter(l => l.cliente_id === c.id);
-  const lancsAnt = (allLancsAnt || []).filter(l => l.cliente_id === c.id);
+  const lancs        = allLancs.filter(l => l.cliente_id === c.id);
+  const lancsAnt     = (allLancsAnt || []).filter(l => l.cliente_id === c.id);
+  const isLiquidacao = l => l.categoria === "Liquidação de Fatura" || l.categoria === "Liquidacao de Fatura";
+  const lancsCont    = lancs.filter(l => !isLiquidacao(l));
+  const lancsAntCont = lancsAnt.filter(l => !isLiquidacao(l));
   const [tab, setTab]   = useState("dashboard");
   const [form, setForm] = useState(false);
-  const total = lancs.reduce((s, l) => s + l.valor, 0);
+  const total = lancsCont.reduce((s, l) => s + l.valor, 0);
   return (
     <div>
       {form && <FormLancamento c={c} mes={mes} onSaved={() => { onRefresh(); setForm(false); }} onClose={() => setForm(false)} />}
@@ -749,7 +953,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
           </div>
         </div>
         <div style={{ display: "flex", borderTop: `1px solid ${P.border}` }}>
-          {[["caixa", "Caixa"], ["dashboard", "Dashboard"], ["relatorio", "Relatório"], ["historico", "Histórico"]].map(([v, l]) => (
+          {[["caixa", "Caixa"], ["dashboard", "Dashboard"], ["relatorio", "Relatório"], ["historico", "Histórico"], ["categorias", "Categorias"]].map(([v, l]) => (
             <button key={v} onClick={() => setTab(v)}
               style={{ flex: 1, padding: "10px 4px", fontSize: 11, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: tab === v ? c.cor : P.muted + "88", borderBottom: tab === v ? `2.5px solid ${c.cor}` : "2.5px solid transparent", border: "none", background: "none", cursor: "pointer", fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
               {l}
@@ -759,12 +963,13 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
       </div>
       <div style={{ padding: "18px 20px 80px" }}>
         {tab === "caixa" && <CaixaMentor c={c} mes={mes} despesaTotal={total} />}
-        {tab === "dashboard" && <Dashboard c={c} lancs={lancs} lancsAnt={lancsAnt} />}
-        {tab === "relatorio" && <Relatorio c={c} lancs={lancs} />}
+        {tab === "dashboard" && <Dashboard c={c} lancs={lancsCont} lancsAnt={lancsAntCont} />}
+        {tab === "relatorio" && <Relatorio c={c} lancs={lancsCont} />}
         {tab === "historico" && <Historico c={c} lancs={lancs} onRefresh={onRefresh} />}
+        {tab === "categorias" && <CategoriasAdmin c={c} />}
       </div>
       <button onClick={() => setForm(true)}
-        style={{ position: "fixed", bottom: 24, right: 20, background: c.cor, color: "#fff", border: "none", borderRadius: 14, padding: "13px 20px", fontSize: 13, fontWeight: 700, fontFamily: "'Sora',sans-serif", cursor: "pointer", boxShadow: `0 6px 20px ${c.cor}55`, zIndex: 100, display: "flex", alignItems: "center", gap: 8 }}>
+        style={{ position: "fixed", bottom: 24, right: 20, background: c.cor, color: P.ink, border: "none", borderRadius: 14, padding: "13px 20px", fontSize: 13, fontWeight: 700, fontFamily: "'Sora',sans-serif", cursor: "pointer", boxShadow: `0 6px 20px ${c.cor}55`, zIndex: 100, display: "flex", alignItems: "center", gap: 8 }}>
         + Novo lançamento
       </button>
     </div>
@@ -783,7 +988,7 @@ function Card({ c, lancs, ultimaData, onClick }) {
       {alerta && (
         <div className="alert-pulse" style={{
           position: "absolute", top: -8, right: -8,
-          background: P.red, color: "#fff", borderRadius: 20,
+          background: P.redStrong, color: "#fff", borderRadius: 20,
           padding: "3px 10px", fontSize: 10, fontWeight: 700,
           boxShadow: `0 2px 8px ${P.red}55`,
           display: "flex", alignItems: "center", gap: 4,
@@ -877,7 +1082,7 @@ export default function PainelConsultor() {
     }
     setUltimasDatas(datas);
   };
-  useEffect(() => { setSel(null); setLancs([]); setPrevCnt(0); setLoading(true); carregar(); }, [mes]);
+  useEffect(() => { setLancs([]); setPrevCnt(0); setLoading(true); carregar(); }, [mes]);
   useEffect(() => {
     carregarUltimasDatas();
     const t1 = setInterval(() => carregar(true), 3000);
@@ -902,24 +1107,21 @@ export default function PainelConsultor() {
       <div className="glass" style={{ borderRadius: 0, borderLeft: "none", borderRight: "none", borderTop: "none", padding: "14px 20px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 4px 18px rgba(60,100,150,.07)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".3em", textTransform: "uppercase", marginBottom: 3, fontWeight: 600 }}>Mentoria Financeira</div>
+            <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".3em", textTransform: "uppercase", marginBottom: 3, fontWeight: 600 }}>Simplifique · Otimize · Evolua</div>
             <div style={{ fontSize: 20, fontWeight: 600, color: P.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.15 }}>
-              gestão fora da <em style={{ color: P.blue }}>caixa</em>
+              Box<em style={{ color: P.blue }}>Less</em>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* Badge alertas */}
             {alertas > 0 && !sel && (
-              <div className="alert-pulse" style={{ background: P.red, color: "#fff", borderRadius: 20, padding: "5px 10px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+              <div className="alert-pulse" style={{ background: P.redStrong, color: "#fff", borderRadius: 20, padding: "5px 10px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                 ⚠ {alertas} cliente{alertas > 1 ? "s" : ""} inativo{alertas > 1 ? "s" : ""}
               </div>
             )}
-            <div style={{ background: P.blueL, borderRadius: 12, padding: "9px 13px", border: `1px solid ${P.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {loading ? <span className="spin" /> : <div style={{ width: 7, height: 7, borderRadius: "50%", background: P.green }} className="pulse" />}
-              <div>
-                <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600 }}>{loading ? "Carregando" : "Ao vivo · 3s"}</div>
-                {lastSync && <div style={{ fontSize: 9, color: P.muted, marginTop: 1 }}>{lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
-              </div>
+              {lastSync && <div style={{ fontSize: 10, color: P.muted, fontWeight: 600 }}>{lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
             </div>
           </div>
         </div>
