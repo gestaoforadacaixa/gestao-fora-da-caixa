@@ -209,9 +209,26 @@ function Logo({ id, size = 42 }) {
   );
   if (id === "lima") return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-      <circle cx="50" cy="50" r="50" fill={P.green} />
-      <circle cx="50" cy="50" r="46" fill="none" stroke="#C9A566" strokeWidth="1.5" />
-      <text x="50" y="60" textAnchor="middle" fontFamily="Georgia,serif" fontSize="30" fontWeight="700" fill="#C9A566">LP</text>
+      <defs>
+        <linearGradient id="limaGoldPainel" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#F2DFA8"/>
+          <stop offset="45%" stopColor="#D4AF6A"/>
+          <stop offset="100%" stopColor="#A9803A"/>
+        </linearGradient>
+        <linearGradient id="limaNavyPainel" x1="20%" y1="0%" x2="80%" y2="100%">
+          <stop offset="0%" stopColor="#0A1628"/>
+          <stop offset="55%" stopColor="#0D2036"/>
+          <stop offset="100%" stopColor="#0F3A4A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="50" fill="url(#limaNavyPainel)"/>
+      <path d="M50 17.5 L75 50 L50 82.5 L25 50 Z" fill="none" stroke="url(#limaGoldPainel)" strokeWidth="1.3"/>
+      <path d="M50 25 L68 50 L50 75 L32 50 Z" fill="none" stroke="url(#limaGoldPainel)" strokeWidth="0.6"/>
+      <line x1="36" y1="50" x2="64" y2="50" stroke="url(#limaGoldPainel)" strokeWidth="1"/>
+      <circle cx="36" cy="50" r="1.6" fill="url(#limaGoldPainel)"/>
+      <circle cx="64" cy="50" r="1.6" fill="url(#limaGoldPainel)"/>
+      <text x="50" y="46" textAnchor="middle" fontFamily="Georgia,serif" fontSize="13.5" fontWeight="700" fill="url(#limaGoldPainel)">L</text>
+      <text x="50" y="61.5" textAnchor="middle" fontFamily="Georgia,serif" fontSize="13.5" fontWeight="700" fill="url(#limaGoldPainel)">P</text>
     </svg>
   );
   return (
