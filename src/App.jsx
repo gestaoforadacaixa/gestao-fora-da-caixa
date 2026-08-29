@@ -111,9 +111,11 @@ function gerarMeses() {
   return { arr, labels, idxAtual: 3 };
 }
 const { arr: MESES_DISP, labels: MESES_LABEL, idxAtual: IDX_ATUAL } = gerarMeses();
+const CATS_EMP_LIMA = []; // sem categorias fixas — 100% cadastrado pelo Painel
 const CLIENTES = [
   { id: "pico",  nome: "Pico Barber Shop",         seg: "Barbearia", hasPessoal: true,  cor: P.orange, corL: P.orangeL, corT: P.orange, corPale: P.orangePale, catsEmp: CATS_EMP_PICO,  catsPes: CATS_PES_PICO  },
   { id: "criar", nome: "CRIAR Centro Educacional",  seg: "Educação",  hasPessoal: false, cor: P.blue,   corL: P.blueL,   corT: P.blue, corPale: P.bluePale,   catsEmp: CATS_EMP_CRIAR, catsPes: [] },
+  { id: "lima",  nome: "Lima Patrimonial",          seg: "Gestão Financeira Pessoal", hasPessoal: false, cor: P.green, corL: P.greenL, corT: P.green, corPale: P.greenPale, catsEmp: CATS_EMP_LIMA, catsPes: [] },
 ];
 const fmt  = v  => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const pct  = (a, b) => b > 0 ? ((a / b) * 100).toFixed(1) : "0.0";
@@ -203,6 +205,13 @@ function Logo({ id, size = 42 }) {
         <text x="4" y="22" fontFamily="Arial Black,sans-serif" fontSize="22" fontWeight="900" fill={P.orange} letterSpacing="2">PICO</text>
       </g>
       <text x="38" y="88" fontFamily="Georgia,serif" fontSize="11" fill={P.orange} fontStyle="italic" textAnchor="middle">barbershop</text>
+    </svg>
+  );
+  if (id === "lima") return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+      <circle cx="50" cy="50" r="50" fill={P.green} />
+      <circle cx="50" cy="50" r="46" fill="none" stroke="#C9A566" strokeWidth="1.5" />
+      <text x="50" y="60" textAnchor="middle" fontFamily="Georgia,serif" fontSize="30" fontWeight="700" fill="#C9A566">LP</text>
     </svg>
   );
   return (
