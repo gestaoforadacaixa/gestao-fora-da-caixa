@@ -21,6 +21,12 @@ async function fetchReceitas(clienteId, mes) {
     return r.ok ? r.json() : [];
   } catch { return []; }
 }
+async function fetchReceitasMes(mes) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/receitas?mes=eq.${mes}`, { headers: SBH });
+    return r.ok ? r.json() : [];
+  } catch { return []; }
+}
 async function sbPost(b) {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos`, { method: "POST", headers: SBH_W, body: JSON.stringify(b) });
@@ -1106,17 +1112,20 @@ export default function PainelConsultor() {
   const [novos,     setNovos]     = useState(0);
   const [prevCnt,   setPrevCnt]   = useState(0);
   const [ultimasDatas, setUltimasDatas] = useState({});
+  const [receitasGeral, setReceitasGeral] = useState([]);
   const mes    = MESES_DISP[mesIdx];
   const mesAnt = mesIdx > 0 ? MESES_DISP[mesIdx - 1] : null;
   const carregar = async (silent = false) => {
     if (!silent) setLoading(true);
-    const [data, dataAnt] = await Promise.all([
+    const [data, dataAnt, receitasMes] = await Promise.all([
       fetchMes(mes),
       mesAnt ? fetchMes(mesAnt) : Promise.resolve([]),
+      fetchReceitasMes(mes),
     ]);
     const arr = data || [];
     setLancs(arr);
     setLancsAnt(dataAnt || []);
+    setReceitasGeral(receitasMes || []);
     setPrevCnt(prev => {
       if (prev > 0 && arr.length > prev) setNovos(n => n + (arr.length - prev));
       return arr.length;
@@ -1144,6 +1153,7 @@ export default function PainelConsultor() {
   }, [novos]);
   const isLiquidacaoTop = l => l.categoria === "Liquidação de Fatura" || l.categoria === "Liquidacao de Fatura";
   const totalGeral = useMemo(() => lancs.filter(l => !isLiquidacaoTop(l)).reduce((s, l) => s + l.valor, 0), [lancs]);
+  const totalReceitaGeral = useMemo(() => receitasGeral.reduce((s, r) => s + r.valor, 0), [receitasGeral]);
   const porCliente = useMemo(() => {
     const m = {};
     CLIENTES.forEach(c => { m[c.id] = lancs.filter(l => l.cliente_id === c.id); });
@@ -1193,7 +1203,7 @@ export default function PainelConsultor() {
       ) : (
         <div style={{ padding: "20px 16px 60px" }}>
           <div className="glass" style={{ borderRadius: 16, padding: "22px 20px", marginBottom: 20, boxShadow: P.shadow }}>
-            <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 4, fontWeight: 600 }}>Total da Carteira — {MESES_LABEL[mes]}</div>
+            <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 4, fontWeight: 600 }}>Fechamento da Carteira — {MESES_LABEL[mes]}</div>
             {loading && lancs.length === 0 ? (
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 0" }}>
                 <span className="spin" />
@@ -1201,24 +1211,42 @@ export default function PainelConsultor() {
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 32, fontWeight: 400, color: P.text, lineHeight: 1, fontFamily: "'DM Serif Display',serif", marginBottom: 6 }}>{fmt(totalGeral)}</div>
-                <div style={{ fontSize: 11, color: P.muted, opacity: .6, marginBottom: totalGeral > 0 ? 16 : 0, textTransform: "uppercase", letterSpacing: ".08em" }}>
-                  {lancs.length} lançamentos · {CLIENTES.length} clientes
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16, marginTop: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Despesas</div>
+                    <div style={{ fontSize: 24, fontWeight: 400, color: P.red, lineHeight: 1, fontFamily: "'DM Serif Display',serif" }}>{fmt(totalGeral)}</div>
+                    <div style={{ fontSize: 10, color: P.muted, opacity: .7, marginTop: 4 }}>{lancs.length} lançamentos</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Recebimentos</div>
+                    <div style={{ fontSize: 24, fontWeight: 400, color: P.green, lineHeight: 1, fontFamily: "'DM Serif Display',serif" }}>{fmt(totalReceitaGeral)}</div>
+                    <div style={{ fontSize: 10, color: P.muted, opacity: .7, marginTop: 4 }}>{receitasGeral.length} recebimento{receitasGeral.length === 1 ? "" : "s"}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: P.muted, opacity: .6, marginBottom: 14, textTransform: "uppercase", letterSpacing: ".08em", borderTop: `1px solid ${P.border}`, paddingTop: 12 }}>
+                  {CLIENTES.length} clientes
                 </div>
                 {CLIENTES.map(c => {
                   const tot = (porCliente[c.id] || []).filter(l => !isLiquidacaoTop(l)).reduce((s, l) => s + l.valor, 0);
-                  if (!tot) return null;
+                  const totRec = receitasGeral.filter(r => r.cliente_id === c.id).reduce((s, r) => s + r.valor, 0);
+                  if (!tot && !totRec) return null;
                   return (
-                    <div key={c.id} style={{ marginBottom: 9 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, opacity: .75 }}>{c.nome}</span>
+                    <div key={c.id} style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>{c.nome}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                        <span style={{ fontSize: 10, color: P.muted }}>Despesa</span>
                         <span style={{ fontSize: 11, fontWeight: 600, color: c.corT }}>{fmt(tot)}</span>
                       </div>
                       <Bar p={totalGeral > 0 ? (tot / totalGeral) * 100 : 0} color={c.cor} />
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, marginBottom: 3 }}>
+                        <span style={{ fontSize: 10, color: P.muted }}>Recebimento</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: P.green }}>{fmt(totRec)}</span>
+                      </div>
+                      <Bar p={totalReceitaGeral > 0 ? (totRec / totalReceitaGeral) * 100 : 0} color={P.green} />
                     </div>
                   );
                 })}
-                {totalGeral === 0 && (
+                {totalGeral === 0 && totalReceitaGeral === 0 && (
                   <div style={{ textAlign: "center", padding: "16px 0", color: P.muted, fontSize: 13 }}>
                     Nenhum lançamento registrado neste mês.
                   </div>
