@@ -27,6 +27,12 @@ async function fetchReceitasMes(mes) {
     return r.ok ? r.json() : [];
   } catch { return []; }
 }
+async function fetchAplicadoCliente(clienteId) {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos?cliente_id=eq.${clienteId}&categoria=eq.Aplicado&excluido=eq.false&order=data.desc`, { headers: SBH });
+    return r.ok ? r.json() : [];
+  } catch { return []; }
+}
 async function sbPost(b) {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/lancamentos`, { method: "POST", headers: SBH_W, body: JSON.stringify(b) });
@@ -964,6 +970,78 @@ function CategoriasAdmin({ c }) {
   );
 }
 
+// ─── APLICADO (Mentor) — montante acumulado + comparativo mensal ──────────────
+function AplicadoMentor({ c, mes, mesAnt }) {
+  const [itens, setItens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let ativo = true;
+    setLoading(true);
+    fetchAplicadoCliente(c.id).then(r => { if (ativo) { setItens(r || []); setLoading(false); } });
+    const t = setInterval(() => {
+      fetchAplicadoCliente(c.id).then(r => { if (ativo) setItens(r || []); });
+    }, 8000);
+    return () => { ativo = false; clearInterval(t); };
+  }, [c.id]);
+
+  const totalGeral = itens.reduce((s, t) => s + t.valor, 0);
+  const totalMesAtual = itens.filter(t => t.mes === mes).reduce((s, t) => s + t.valor, 0);
+  const totalMesAnt = mesAnt ? itens.filter(t => t.mes === mesAnt).reduce((s, t) => s + t.valor, 0) : 0;
+  const diff = totalMesAnt > 0 ? ((totalMesAtual - totalMesAnt) / totalMesAnt) * 100 : null;
+  const subiu = diff != null && diff > 0;
+  const itensOrd = [...itens].sort((a, b) => b.data.localeCompare(a.data));
+
+  if (loading) return <div className="fu" style={{ textAlign: "center", padding: "40px 0" }}><span className="spin" /></div>;
+
+  return (
+    <div className="fu">
+      <div style={{ borderRadius: 16, padding: "22px 20px", marginBottom: 14, background: "linear-gradient(135deg, #173C33, #2E6E5E)", boxShadow: P.shadow }}>
+        <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#C9A566", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>Montante Aplicado (acumulado)</div>
+        <div style={{ fontSize: 30, fontWeight: 700, color: "#F4F2ED", fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{fmt(totalGeral)}</div>
+        <div style={{ fontSize: 11, color: "#C9A566", marginTop: 8, fontWeight: 600 }}>{itens.length} lançamento{itens.length === 1 ? "" : "s"} · soma de todos os meses</div>
+      </div>
+
+      <div className="glass" style={{ borderRadius: 14, padding: "16px", marginBottom: 14 }}>
+        <div style={{ fontSize: 9, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>Aplicado neste mês</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: P.text, fontFamily: "'DM Serif Display',serif" }}>{fmt(totalMesAtual)}</div>
+          {diff != null && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: subiu ? P.green : P.red, background: subiu ? "rgba(31,129,88,.08)" : "rgba(185,62,62,.08)", border: `1px solid ${subiu ? P.green : P.red}30`, borderRadius: 8, padding: "3px 9px" }}>
+              {subiu ? "▲" : "▼"} {Math.abs(diff).toFixed(1)}% vs mês anterior
+            </span>
+          )}
+        </div>
+        {mesAnt ? (
+          <div style={{ fontSize: 11, color: P.muted, marginTop: 8 }}>{MESES_LABEL[mesAnt]}: {fmt(totalMesAnt)}</div>
+        ) : (
+          <div style={{ fontSize: 11, color: P.muted, marginTop: 8 }}>Sem mês anterior pra comparar ainda.</div>
+        )}
+      </div>
+
+      <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>Extrato de Aplicações</div>
+      {itensOrd.length === 0 ? (
+        <div className="glass" style={{ borderRadius: 14, padding: "32px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>🌱</div>
+          <div style={{ fontSize: 13, color: P.muted, fontWeight: 600 }}>Nenhuma aplicação registrada ainda.</div>
+        </div>
+      ) : (
+        <div className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
+          {itensOrd.map((t, i) => (
+            <div key={t.id} style={{ padding: "12px 16px", borderBottom: i < itensOrd.length - 1 ? `1px solid ${P.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 4, height: 34, background: P.green, borderRadius: 2, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.descricao}</div>
+                <div style={{ fontSize: 10, color: P.muted, marginTop: 2 }}>{fd(t.data)} · {MESES_LABEL[t.mes] || t.mes}</div>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: P.green, fontFamily: "'DM Serif Display',serif", flexShrink: 0 }}>{fmt(t.valor)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
   const lancs        = allLancs.filter(l => l.cliente_id === c.id);
   const lancsAnt     = (allLancsAnt || []).filter(l => l.cliente_id === c.id);
@@ -1007,7 +1085,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
           </div>
         </div>
         <div style={{ display: "flex", borderTop: `1px solid ${P.border}` }}>
-          {[["caixa", "Caixa"], ["dashboard", "Dashboard"], ["relatorio", "Relatório"], ["historico", "Histórico"], ["categorias", "Categorias"]].map(([v, l]) => (
+          {[["caixa", "Caixa"], ["dashboard", "Dashboard"], ["relatorio", "Relatório"], ["historico", "Histórico"], ["categorias", "Categorias"], ["aplicado", "Aplicado"]].map(([v, l]) => (
             <button key={v} onClick={() => setTab(v)}
               style={{ flex: 1, padding: "10px 4px", fontSize: 11, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: tab === v ? c.cor : P.muted + "88", borderBottom: tab === v ? `2.5px solid ${c.cor}` : "2.5px solid transparent", border: "none", background: "none", cursor: "pointer", fontFamily: "'Sora',sans-serif", transition: "all .18s" }}>
               {l}
@@ -1021,6 +1099,7 @@ function Detalhe({ c, mes, mesAnt, allLancs, allLancsAnt, onBack, onRefresh }) {
         {tab === "relatorio" && <Relatorio c={c} lancs={lancsCont} />}
         {tab === "historico" && <Historico c={cLive} lancs={lancs} onRefresh={onRefresh} />}
         {tab === "categorias" && <CategoriasAdmin c={c} />}
+        {tab === "aplicado" && <AplicadoMentor c={c} mes={mes} mesAnt={mesAnt} />}
       </div>
       <button onClick={() => setForm(true)}
         style={{ position: "fixed", bottom: 24, right: 20, background: c.cor, color: P.ink, border: "none", borderRadius: 14, padding: "13px 20px", fontSize: 13, fontWeight: 700, fontFamily: "'Sora',sans-serif", cursor: "pointer", boxShadow: `0 6px 20px ${c.cor}55`, zIndex: 100, display: "flex", alignItems: "center", gap: 8 }}>
