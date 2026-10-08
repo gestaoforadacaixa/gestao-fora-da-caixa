@@ -548,8 +548,24 @@ function Dashboard({ c, lancs, lancsAnt }) {
   const total = totE + totP;
   const totAnt = lancsAnt.reduce((s, l) => s + l.valor, 0);
   const diff = totAnt > 0 ? ((total - totAnt) / totAnt * 100) : null;
-  const cats = ag(lancs).slice(0, 5);
-  const donut = ag(lancs).slice(0, 6);
+  const catsAll = ag(lancs);
+  const temAnt = lancsAnt.length > 0;
+  const prevMap = {};
+  ag(lancsAnt).forEach(({ cat, val }) => { prevMap[cat] = val; });
+  // categorias que tinham valor no mês anterior e zeraram neste mês (a queda também é informação)
+  const zeraram = Object.keys(prevMap).filter(k => !catsAll.some(x => x.cat === k))
+    .sort((a, b) => prevMap[b] - prevMap[a]).map(cat => ({ cat, val: 0, cor: CAT_COR[cat] || P.muted }));
+  const linhasCat = [...catsAll, ...zeraram];
+  const variacaoCat = (cat, val) => {
+    if (!temAnt) return null;
+    const ant = prevMap[cat] || 0;
+    if (ant === 0) return val > 0 ? { txt: "novo — sem lançamento no mês anterior", cor: P.orange } : null;
+    if (val === ant) return { txt: "= igual ao mês anterior", cor: P.muted };
+    const d = ((val - ant) / ant) * 100;
+    const subiu = d > 0;
+    const bom = cat === "Aplicado" ? subiu : !subiu;   // despesa: subir é ruim; "Aplicado": subir é bom
+    return { txt: `${subiu ? "▲ +" : "▼ "}${d.toFixed(1)}% vs mês anterior · ant. ${fmt(ant)}`, cor: bom ? P.green : P.red };
+  };
   if (total === 0) return (
     <div className="fu glass" style={{ borderRadius: 14, padding: "36px", textAlign: "center", marginTop: 8 }}>
       <div style={{ fontSize: 36, marginBottom: 8 }}>📭</div>
@@ -574,26 +590,34 @@ function Dashboard({ c, lancs, lancsAnt }) {
       </div>
       <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 14 }}>
         <div style={{ fontSize: 10, color: P.muted, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>Distribuição por Categoria</div>
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <div style={{ flexShrink: 0, position: "relative" }}>
-            <Donut segs={donut} size={90} />
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+          <div style={{ position: "relative" }}>
+            <Donut segs={catsAll} size={124} />
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
               <div style={{ fontSize: 8, color: P.muted, fontWeight: 600, textTransform: "uppercase" }}>total</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: P.text, fontFamily: "'DM Serif Display',serif", textAlign: "center", lineHeight: 1.2, maxWidth: 52 }}>{fmt(total)}</div>
+              <div style={{ fontSize: fmt(total).length > 12 ? 8 : 9, fontWeight: 700, color: P.text, fontFamily: "'DM Serif Display',serif", textAlign: "center", lineHeight: 1.2, maxWidth: 62 }}>{fmt(total)}</div>
             </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {cats.map(({ cat, val, cor }) => (
-              <div key={cat} style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60%" }}>{cat}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: cor }}>{pct(val, total)}%</span>
-                </div>
-                <Bar p={total > 0 ? (val / total) * 100 : 0} color={cor} h={4} />
-              </div>
-            ))}
-          </div>
         </div>
+        {linhasCat.map(({ cat, val, cor }, i) => {
+          const v = variacaoCat(cat, val);
+          return (
+            <div key={cat} style={{ padding: "10px 0", borderTop: i ? `1px solid ${P.border}` : "none", opacity: val === 0 ? 0.7 : 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 5 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: cor, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+                </span>
+                <span style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: P.text }}>{fmt(val)}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: cor, minWidth: 44, textAlign: "right" }}>{pct(val, total)}%</span>
+                </span>
+              </div>
+              <Bar p={total > 0 ? (val / total) * 100 : 0} color={cor} h={4} />
+              {v && <div style={{ fontSize: 10, fontWeight: 600, color: v.cor, marginTop: 5 }}>{v.txt}</div>}
+            </div>
+          );
+        })}
       </div>
       {c.hasPessoal && (
         <div className="glass" style={{ borderRadius: 16, padding: "18px", marginBottom: 14 }}>
